@@ -1,0 +1,37 @@
+@import "tailwindcss";
+
+/*
+ * RailPulse is dark-first by design (a live-tracking "hero visualization"
+ * stays legible with moving elements on a dark map, the same reasoning
+ * nav products use for night mode). Tokens are defined as CSS variables
+ * so a light theme can be added later without touching component code -
+ * see README.md "Known limitations" for what's intentionally deferred
+ * past the MVP.
+ */
+:root {
+  --color-surface: #0a0c10;
+  --color-panel: #12151b;
+  --color-border: rgba(255, 255, 255, 0.1);
+  --color-text-primary: #eef1f5;
+  --color-text-muted: rgba(255, 255, 255, 0.5);
+  --color-accent: #2bd9c0;
+  --color-accent-fast: #ff9d4d;
+}
+
+html,
+body {
+  height: 100%;
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+  overscroll-behavior: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+canvas {
+  touch-action: none;
+}
