@@ -11,6 +11,12 @@ coordinate system end to end (backend chainage &rarr; WebSocket &rarr;
 client scene), so nothing is faked for visual effect except the physical
 size of the train model (see `frontend/components/three/TrainMesh.tsx`).
 
+| Network view | Journey view (follow camera) |
+| --- | --- |
+| ![Network view: the Thane-Dadar corridor with several live trains](docs/screenshots/network-view.png) | ![Journey view: a selected train with its follow camera and info panel](docs/screenshots/journey-view.png) |
+
+<img src="docs/screenshots/mobile-journey-view.png" alt="Mobile viewport of the journey view" width="280" />
+
 ## Architecture
 
 ```

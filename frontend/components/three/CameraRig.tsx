@@ -9,8 +9,11 @@ import { interpolateTrainPosition } from "@/lib/interpolate";
 import { latLonToScene } from "@/lib/geo";
 import { useRailPulseStore } from "@/lib/store";
 
-const FOLLOW_DISTANCE = 13;
-const FOLLOW_HEIGHT = 7;
+// Wide enough behind/above the ~9-unit train model to keep a stretch of
+// track ahead in view (a Tesla-nav-style chase cam shows the road ahead,
+// not just the vehicle filling the frame).
+const FOLLOW_DISTANCE = 30;
+const FOLLOW_HEIGHT = 10;
 const FOLLOW_LERP = 0.07;
 
 export function CameraRig() {

@@ -92,3 +92,20 @@ def test_current_and_next_station_are_populated_near_a_stop() -> None:
     assert update.current_station is not None
     assert update.current_station.code == "TNA"
     assert update.next_station is not None
+
+
+def test_next_station_is_not_the_same_as_current_when_approaching() -> None:
+    # A fix within a station's arrival tolerance but not exactly at its
+    # chainage must not report that station as both current AND next.
+    route, provider = _make_provider()
+    processor = PositionProcessor(route=route, schedule_provider=provider)
+    bhandup = route.stations[3]
+    approach_chainage = bhandup.chainage_m - 30.0
+    lat, lon = route.position_at_chainage(approach_chainage)
+
+    update = processor.process_batch([RawFix("CR-TEST", lat, lon, time.time())])[0]
+
+    assert update.current_station is not None
+    assert update.current_station.code == bhandup.station.code
+    assert update.next_station is not None
+    assert update.next_station.code != bhandup.station.code

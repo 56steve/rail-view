@@ -92,6 +92,15 @@ class TrainRunPlan:
                 return stop
         return None
 
+    def stop_after(self, stop: ScheduledStop) -> ScheduledStop | None:
+        """The next stop in travel order after `stop`. Used instead of a
+        chainage-based `next_stop` lookup once a current stop is already
+        resolved, so a train sitting just inside the arrival tolerance of
+        a station can't show that same station as both current AND next.
+        """
+        index = self.stops.index(stop)
+        return self.stops[index + 1] if index + 1 < len(self.stops) else None
+
 
 def build_run_plan(
     route: RailwayRoute,

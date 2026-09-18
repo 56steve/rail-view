@@ -83,7 +83,11 @@ class PositionProcessor:
         speed_kmh, direction_forward = self._update_kinematics(fix, match.chainage_m, active_run)
 
         current_stop = plan.current_stop(match.chainage_m)
-        next_stop = plan.next_stop(match.chainage_m)
+        # Derive "next" relative to the resolved current stop rather than
+        # independently by chainage - otherwise a train sitting just
+        # inside a station's arrival tolerance (but not exactly at its
+        # chainage) can show that same station as both current and next.
+        next_stop = plan.stop_after(current_stop) if current_stop is not None else plan.next_stop(match.chainage_m)
 
         scheduled_elapsed_s = plan.scheduled_elapsed_s_at(match.chainage_m)
         actual_elapsed_s = fix.timestamp_s - active_run.started_at_epoch
