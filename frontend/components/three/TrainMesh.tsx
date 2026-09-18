@@ -105,9 +105,11 @@ export function TrainMesh({ trainId }: { trainId: string }) {
         <boxGeometry args={[BODY_WIDTH, BODY_HEIGHT, BODY_LENGTH]} />
         <meshStandardMaterial
           ref={bodyMaterialRef}
-          color="#3c4452"
-          metalness={0.5}
-          roughness={0.3}
+          color="#6b7482"
+          emissive="#20242c"
+          emissiveIntensity={0.6}
+          metalness={0.25}
+          roughness={0.55}
         />
       </mesh>
 

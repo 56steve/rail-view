@@ -31,9 +31,14 @@ export function Scene() {
     >
       <color attach="background" args={["#0a0c10"]} />
       <fog attach="fog" args={["#0a0c10", 900, 3600]} />
-      <ambientLight intensity={0.6} />
-      <hemisphereLight args={["#3a4a63", "#05060a", 0.5]} />
-      <directionalLight position={[400, 600, 250]} intensity={1.15} color="#e7edff" />
+      <ambientLight intensity={0.95} />
+      <hemisphereLight args={["#5a7099", "#0d1117", 0.85]} />
+      <directionalLight position={[400, 600, 250]} intensity={1.3} color="#e7edff" />
+      {/* Fill light from roughly the opposite side, so a train's face
+          away from the key light doesn't read as pure black from the
+          follow camera (which can end up on any side of a train
+          depending on its heading). */}
+      <directionalLight position={[-350, 250, -300]} intensity={0.55} color="#8fb4ff" />
 
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.05, 0]}>
         <planeGeometry args={[20000, 20000]} />
