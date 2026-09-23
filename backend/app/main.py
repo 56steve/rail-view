@@ -1,7 +1,8 @@
 """FastAPI application entrypoint.
 
-Wires together the telemetry source (the simulator for MVP - swap in a
-live adapter later by implementing `TelemetrySource`/`ScheduleProvider`),
+Wires together the telemetry source (the timetable-driven simulator until
+an authorised live feed exists - swap it in by implementing
+`TelemetrySource`/`ScheduleProvider`),
 the position processor, the live-position cache, and the WebSocket
 broadcast hub, then runs one background task that ticks the whole
 pipeline and fans results out to every connected client.
@@ -18,6 +19,8 @@ from collections.abc import AsyncIterator
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.routes_journeys import router as journeys_router
+from app.api.routes_service_day import router as service_day_router
 from app.api.routes_stations import router as stations_router
 from app.api.routes_trains import router as trains_router
 from app.api.ws import router as ws_router
@@ -25,8 +28,9 @@ from app.config import get_settings
 from app.schemas.websocket import SnapshotMessage
 from app.services.live_cache import LiveTrainCache
 from app.services.position_processor import PositionProcessor
-from app.services.simulator.engine import SimulatedTelemetrySource
-from app.services.track_matching import get_route
+from app.services.simulator.engine import TimetableTelemetrySource
+from app.services.timetable import load_timetable
+from app.services.track_matching import get_all_routes
 from app.services.websocket_manager import ConnectionManager
 
 logging.basicConfig(level=logging.INFO)
@@ -34,7 +38,7 @@ logger = logging.getLogger(__name__)
 
 
 async def _run_pipeline(app: FastAPI) -> None:
-    source: SimulatedTelemetrySource = app.state.telemetry_source
+    source: TimetableTelemetrySource = app.state.telemetry_source
     processor: PositionProcessor = app.state.position_processor
     cache: LiveTrainCache = app.state.live_cache
     manager: ConnectionManager = app.state.connection_manager
@@ -42,6 +46,12 @@ async def _run_pipeline(app: FastAPI) -> None:
     async for fixes in source.stream():
         updates = processor.process_batch(fixes)
         cache.apply(updates)
+        # A train with no active run has finished its journey: it leaves
+        # the map rather than lingering as "stale".
+        for train_id in cache.train_ids():
+            if source.get_active_run(train_id) is None:
+                cache.remove(train_id)
+                processor.forget(train_id)
         snapshot = cache.snapshot()
         if manager.active_connection_count:
             await manager.broadcast(
@@ -52,21 +62,26 @@ async def _run_pipeline(app: FastAPI) -> None:
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
-    route = get_route("CR")
+    routes = get_all_routes()
 
-    source = SimulatedTelemetrySource(
-        route=route,
-        train_count=settings.simulated_train_count,
+    timetable = load_timetable()
+    source = TimetableTelemetrySource(
+        routes=routes,
+        timetable=timetable,
         tick_seconds=settings.simulation_tick_seconds,
     )
+    app.state.timetable = timetable
     app.state.telemetry_source = source
-    app.state.position_processor = PositionProcessor(route=route, schedule_provider=source)
+    app.state.position_processor = PositionProcessor(routes=routes, schedule_provider=source)
     app.state.live_cache = LiveTrainCache(stale_after_seconds=settings.stale_after_seconds)
     app.state.connection_manager = ConnectionManager()
 
     pipeline_task = asyncio.create_task(_run_pipeline(app))
     logger.info(
-        "RailPulse simulator started: %s trains on %s", settings.simulated_train_count, route.line_seed.name
+        "RailView running the official timetable: %d trains (%d beyond the network), %d on the map now",
+        len(timetable.trains),
+        len(timetable.unplaced),
+        len(source.running_train_ids),
     )
     try:
         yield
@@ -78,7 +93,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 def create_app() -> FastAPI:
     settings = get_settings()
-    app = FastAPI(title="RailPulse API", version="0.1.0", lifespan=lifespan)
+    app = FastAPI(title="RailView API", version="0.2.0", lifespan=lifespan)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_allow_origins,
@@ -90,6 +105,8 @@ def create_app() -> FastAPI:
 
     app.include_router(stations_router)
     app.include_router(trains_router)
+    app.include_router(journeys_router)
+    app.include_router(service_day_router)
     app.include_router(ws_router)
 
     @app.get("/health")

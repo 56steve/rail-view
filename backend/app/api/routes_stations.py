@@ -1,50 +1,55 @@
 from fastapi import APIRouter, HTTPException
 
-from app.data.mumbai_network import DEFAULT_ROUTE_ID, RAILWAY_LINES
-from app.schemas.station import RouteOut, StationOut
-from app.services.track_matching import get_route
+from app.data.mumbai_network import load_network
+from app.schemas.station import LineOut, NetworkOut, RouteOut, RunningLanesOut, StationIndexEntry
+from app.services.position_processor import station_out
+from app.services.station_index import station_index
+from app.services.track_matching import RailwayRoute, get_all_routes
 
-router = APIRouter(prefix="/api/routes", tags=["routes"])
-
-
-@router.get("", response_model=list[RouteOut])
-def list_routes() -> list[RouteOut]:
-    """Every route the API currently serves. MVP has exactly one
-    (Thane<->Dadar on the Central Line); more lines register here as
-    `app.data.mumbai_network.RAILWAY_LINES` grows.
-    """
-    return [_build_route_out(code) for code in RAILWAY_LINES]
+router = APIRouter(prefix="/api", tags=["network"])
 
 
-@router.get("/{route_id}", response_model=RouteOut)
+@router.get("/network", response_model=NetworkOut)
+def get_network() -> NetworkOut:
+    """Every line and route's static geometry in one payload - what the
+    client loads on start to draw the whole network."""
+    network = load_network()
+    return NetworkOut(
+        attribution=network.attribution,
+        generated_at=network.generated_at,
+        lines=[LineOut(code=line.code, name=line.name, color_hex=line.color_hex) for line in network.lines.values()],
+        routes=[_route_out(route) for route in get_all_routes().values()],
+    )
+
+
+@router.get("/routes/{route_id}", response_model=RouteOut)
 def get_route_detail(route_id: str) -> RouteOut:
-    if route_id != DEFAULT_ROUTE_ID:
+    routes = get_all_routes()
+    if route_id not in routes:
         raise HTTPException(status_code=404, detail=f"Unknown route_id '{route_id}'")
-    return _build_route_out("CR")
+    return _route_out(routes[route_id])
 
 
-def _build_route_out(line_code: str) -> RouteOut:
-    route = get_route(line_code)
-    stations = [
-        StationOut(
-            code=sc.station.code,
-            name=sc.station.name,
-            lat=sc.station.lat,
-            lon=sc.station.lon,
-            sequence=sc.station.sequence,
-            chainage_m=sc.chainage_m,
-        )
-        for sc in route.stations
-    ]
-    polyline = [[sc.station.lat, sc.station.lon] for sc in route.stations]
+@router.get("/stations", response_model=list[StationIndexEntry])
+def list_stations() -> list[StationIndexEntry]:
+    return sorted(station_index().values(), key=lambda s: s.name)
+
+
+def _route_out(route: RailwayRoute) -> RouteOut:
+    seed = route.seed
     return RouteOut(
-        route_id=DEFAULT_ROUTE_ID,
-        line_code=route.line_seed.code,
-        line_name=route.line_seed.name,
-        color_hex=route.line_seed.color_hex,
+        route_id=seed.code,
+        line_code=seed.line.code,
+        line_name=seed.line.name,
+        color_hex=seed.line.color_hex,
+        name=seed.name,
         length_m=route.length_m,
-        origin_name=stations[0].name,
-        destination_name=stations[-1].name,
-        stations=stations,
-        polyline=polyline,
+        origin_name=seed.stations[0].name,
+        destination_name=seed.stations[-1].name,
+        stations=[station_out(sc) for sc in route.stations],
+        polyline=[[lat, lon] for lat, lon in seed.track],
+        running_lanes=RunningLanesOut(
+            forward=[[c, d] for c, d in seed.running_lanes.forward],
+            backward=[[c, d] for c, d in seed.running_lanes.backward],
+        ),
     )

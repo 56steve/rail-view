@@ -17,14 +17,15 @@ class RailwayLine(Base):
 
 
 class RailwayTrack(Base):
-    """One directional corridor belonging to a line (e.g. the Central
-    Line's Thane<->Dadar mainline). A line may have several tracks
-    (mainline, harbour branch, etc.); the MVP seeds exactly one.
+    """One end-to-end route belonging to a line (e.g. the Central line's
+    CSMT<->Kasara route). A line may have several - Central forks at Kalyan
+    into Kasara and Karjat routes that share the trunk.
     """
 
     __tablename__ = "railway_tracks"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    code: Mapped[str] = mapped_column(String(16), unique=True, index=True)
     line_id: Mapped[int] = mapped_column(ForeignKey("railway_lines.id"), index=True)
     name: Mapped[str] = mapped_column(String(120))
     geom: Mapped[str] = mapped_column(Geometry(geometry_type="LINESTRING", srid=4326))

@@ -1,7 +1,7 @@
 [project]
 name = "railpulse-backend"
 version = "0.1.0"
-description = "RailPulse real-time train position pipeline: ingestion, GPS-to-track matching, WebSocket broadcast."
+description = "RailView backend: Mumbai suburban network data, GPS-to-track matching, timetables and the live WebSocket pipeline."
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.115.0",
@@ -23,6 +23,7 @@ dev = [
     "pytest-asyncio>=0.24.0",
     "ruff>=0.7.0",
     "httpx>=0.27.2",
+    "pdfplumber>=0.11.10",
 ]
 
 [tool.ruff]

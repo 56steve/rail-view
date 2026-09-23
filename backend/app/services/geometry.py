@@ -5,11 +5,11 @@ projecting a point onto a line and measuring distance-along-line is only
 meaningful in a system where distances are actually in metres, which raw
 lat/lon degrees are not (a degree of longitude shrinks as latitude grows).
 
-We use a simple equirectangular (azimuthal) approximation around a fixed
-origin. Mumbai spans roughly 19.0-19.3 deg N, so the whole Central Line
-MVP corridor is under 20km from the origin - well within the range where
-this approximation's error stays under a metre, which is more than
-sufficient for track-matching and visualization purposes. A production
+We use a simple equirectangular approximation around a fixed origin near
+the middle of the suburban network. Every station on the four modelled
+lines (Churchgate to Borivali, CSMT to Thane/Vashi) is within ~20km of
+it, where this approximation's error stays at the metre level - more
+than sufficient for track matching and visualization. A production
 system covering the full multi-city network would switch to a proper
 projected CRS (e.g. UTM zone 43N, EPSG:32643) via PostGIS ST_Transform;
 this module's interface (`to_local` / `to_latlon`) is intentionally the
@@ -26,10 +26,10 @@ from dataclasses import dataclass
 
 EARTH_RADIUS_M = 6_371_000.0
 
-# Fixed local-projection origin: Thane station. Must match
-# frontend/lib/geo.ts ORIGIN exactly.
-ORIGIN_LAT = 19.1868
-ORIGIN_LON = 72.9750
+# Fixed local-projection origin: the approximate centre of the modelled
+# network's bounding box. Must match frontend/lib/geo.ts ORIGIN exactly.
+ORIGIN_LAT = 19.08
+ORIGIN_LON = 72.91
 
 _ORIGIN_LAT_RAD = math.radians(ORIGIN_LAT)
 

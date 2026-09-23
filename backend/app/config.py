@@ -6,11 +6,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    """Runtime configuration for the RailPulse backend.
+    """Runtime configuration for the RailView backend.
 
-    All fields have safe local-dev defaults so the API can boot without a
-    database or Redis instance present (see app.db.session for the
-    in-memory fallback path used by the simulator in that case).
+    All fields have safe local-dev defaults. The live pipeline (simulator,
+    processor, WebSocket hub) runs entirely in memory, so the API boots
+    without Postgres or Redis; only `scripts/seed_db.py` needs a database.
     """
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
@@ -19,11 +19,9 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
 
     # How often (seconds) the simulator advances trains and the WebSocket
-    # hub broadcasts a position snapshot to all connected clients.
+    # hub broadcasts a position snapshot to all connected clients. Which
+    # trains run comes from the official timetable, not from settings.
     simulation_tick_seconds: float = 1.0
-
-    # Number of trains simultaneously simulated on the Thane-Dadar route.
-    simulated_train_count: int = 6
 
     # If no position update for a train is received/generated within this
     # window, clients must treat that train's data as stale rather than

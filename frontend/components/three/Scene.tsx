@@ -1,52 +1,69 @@
 "use client";
 
+import { useMemo } from "react";
 import { Canvas } from "@react-three/fiber";
-import { useShallow } from "zustand/react/shallow";
-import { useRailPulseStore } from "@/lib/store";
+import * as THREE from "three";
+import { useRailView } from "@/lib/store";
 import { CameraRig } from "./CameraRig";
-import { RailwayTrack } from "./RailwayTrack";
-import { StationMarkers } from "./StationMarkers";
-import { TrainMesh } from "./TrainMesh";
+import { City } from "./City";
+import { Environment } from "./Environment";
+import { Ground } from "./Ground";
+import { OverlayProjector } from "./OverlayProjector";
+import { usePalette } from "./palette";
+import { RailLines } from "./RailLines";
+import { Trains } from "./Trains";
 
-// A stable reference matters here: Scene re-renders on every WebSocket
-// tick (trainIds changes), and passing a fresh object literal to
-// Canvas's `camera` prop on every render fights CameraRig's manual
-// positioning (R3F re-applies the initial camera config whenever the
-// prop reference changes), so the camera never settles anywhere useful.
-const INITIAL_CAMERA = { position: [200, 260, 320] as [number, number, number], fov: 42, near: 0.5, far: 8000 };
+// Stable references: Canvas re-applies these when their identity changes,
+// which would fight the camera rig on every re-render.
+const CAMERA = { fov: 40, near: 1, far: 250_000, position: [0, 60_000, 60_000] as [number, number, number] };
+// Logarithmic depth keeps metre-scale detail (rails, platforms) free of
+// z-fighting across a scene that spans tens of kilometres.
+const GL = { antialias: true, logarithmicDepthBuffer: true, powerPreference: "high-performance" as const };
 
-export function Scene() {
-  const route = useRailPulseStore((state) => state.route);
-  // `useShallow` is required here: without it, the selector returns a new
-  // array identity every render, which React 19's external-store checks
-  // treat as a never-settling snapshot and loop forever.
-  const trainIds = useRailPulseStore(useShallow((state) => Object.keys(state.trainPairs)));
+const SUN_DISTANCE = 8000;
+// Low sun (early morning, late afternoon) is warmer; by this elevation it
+// has reached the palette's midday colour.
+const WARM_SUN = new THREE.Color("#FFC58A");
+const MIDDAY_ELEVATION_DEG = 35;
+
+/** Sky, sun and fill light for the current day/night mode. By day the
+ * sun sits where the real sun is over Mumbai. */
+function Lighting() {
+  const palette = usePalette();
+  const lighting = useRailView((s) => s.lighting);
+  const [dx, dy, dz] = lighting.sunDirection;
+  const sunColor = useMemo(() => {
+    const midday = new THREE.Color(palette.sun);
+    if (lighting.mode === "night") return midday;
+    const t = THREE.MathUtils.clamp((lighting.sunElevationDeg - 10) / (MIDDAY_ELEVATION_DEG - 10), 0, 1);
+    return WARM_SUN.clone().lerp(midday, t);
+  }, [palette, lighting.mode, lighting.sunElevationDeg]);
 
   return (
-    <Canvas
-      camera={INITIAL_CAMERA}
-      dpr={[1, 2]}
-      gl={{ antialias: true }}
-      onPointerMissed={() => useRailPulseStore.getState().selectTrain(null)}
-    >
-      <color attach="background" args={["#0a0c10"]} />
-      <fog attach="fog" args={["#0a0c10", 900, 3600]} />
-      <ambientLight intensity={0.6} />
-      <hemisphereLight args={["#3a4a63", "#05060a", 0.5]} />
-      <directionalLight position={[400, 600, 250]} intensity={1.15} color="#e7edff" />
+    <>
+      <color attach="background" args={[palette.background]} />
+      <hemisphereLight args={[palette.skyLight, palette.groundLight, palette.hemisphereIntensity]} />
+      <directionalLight
+        position={[dx * SUN_DISTANCE, dy * SUN_DISTANCE, dz * SUN_DISTANCE]}
+        intensity={palette.sunIntensity}
+        color={sunColor}
+      />
+      <ambientLight intensity={palette.ambientIntensity} />
+    </>
+  );
+}
 
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.05, 0]}>
-        <planeGeometry args={[20000, 20000]} />
-        <meshStandardMaterial color="#0d1015" roughness={1} />
-      </mesh>
-
-      {route && <RailwayTrack route={route} />}
-      {route && <StationMarkers route={route} />}
-      {trainIds.map((id) => (
-        <TrainMesh key={id} trainId={id} />
-      ))}
-
+export function Scene() {
+  return (
+    <Canvas camera={CAMERA} gl={GL} dpr={[1, 2]}>
+      <Lighting />
+      <Ground />
+      <Environment />
+      <City />
+      <RailLines />
+      <Trains />
       <CameraRig />
+      <OverlayProjector />
     </Canvas>
   );
 }
