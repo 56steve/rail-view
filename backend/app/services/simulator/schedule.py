@@ -6,6 +6,10 @@ rows read from the `schedules` / `train_runs` tables (see
 compare actual progress against - which is how delay is computed: the
 same way a real system compares a live GPS-matched position against a
 published timetable, not by inventing a random delay number.
+
+Leg times come from integrating the same speed profile the simulator
+drives trains with (`physics.leg_run_time_s`), so a train that dwells and
+runs exactly as planned is exactly on time.
 """
 
 from __future__ import annotations
@@ -14,17 +18,21 @@ import random
 from dataclasses import dataclass, field
 from typing import Literal
 
+from app.services.simulator.physics import leg_profile, leg_run_time_s
 from app.services.track_matching import RailwayRoute, StationChainage
 
 TrainType = Literal["FAST", "SLOW"]
 
-# Stations a FAST LOCAL skips on this corridor (real Central Line fast
-# locals skip these two between Thane and Dadar).
-FAST_SKIP_CODES = {"NHU", "CHF"}
+COACH_COUNT = 12
+PLANNED_DWELL_S = 20.0
+FAST_CRUISE_KMH = 70.0
+SLOW_CRUISE_KMH = 55.0
+FAST_SHARE = 0.4
 
-AVERAGE_DWELL_S = 20.0
-FAST_CRUISE_KMH = 62.0
-SLOW_CRUISE_KMH = 45.0
+# How close (along the track) a train's filtered position must be to a
+# halt to count as standing at it. Trains creep the last stretch at low
+# speed, so a wide tolerance would log "arrived" well before stopping.
+AT_PLATFORM_TOLERANCE_M = 25.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -39,7 +47,8 @@ class TrainRunPlan:
     train_id: str
     train_type: TrainType
     direction_forward: bool
-    route_line_code: str
+    route_code: str
+    line_code: str
     cruise_kmh: float
     # Stops in travel order (already matches direction_forward), each with
     # a monotonically increasing scheduled_arrival_s.
@@ -57,36 +66,35 @@ class TrainRunPlan:
     def total_scheduled_s(self) -> float:
         return self.stops[-1].scheduled_arrival_s
 
+    def is_ahead(self, chainage_m: float, of_chainage_m: float) -> bool:
+        """Whether `chainage_m` lies beyond `of_chainage_m` in travel direction."""
+        return chainage_m > of_chainage_m if self.direction_forward else chainage_m < of_chainage_m
+
     def scheduled_elapsed_s_at(self, chainage_m: float) -> float:
-        """Linearly interpolate the timetable's expected elapsed-run-time
-        for an arbitrary chainage, using the two bracketing scheduled stops.
-        """
-        for i in range(len(self.stops) - 1):
-            a, b = self.stops[i], self.stops[i + 1]
-            lo, hi = sorted((a.station.chainage_m, b.station.chainage_m))
-            if lo <= chainage_m <= hi:
-                span = hi - lo
-                if span <= 0:
-                    return a.scheduled_arrival_s
-                frac = (chainage_m - lo) / span if a.station.chainage_m <= b.station.chainage_m else 1 - (
-                    chainage_m - lo
-                ) / span
-                return a.scheduled_arrival_s + frac * (b.scheduled_arrival_s - a.scheduled_arrival_s)
+        """Timetabled elapsed run time at an arbitrary chainage: departure
+        time of the preceding halt plus the speed-profile time to cover
+        the distance run since it."""
         first, last = self.stops[0], self.stops[-1]
-        return first.scheduled_arrival_s if chainage_m <= first.station.chainage_m else last.scheduled_arrival_s
+        if not self.is_ahead(chainage_m, first.station.chainage_m):
+            return first.scheduled_arrival_s
+        if not self.is_ahead(last.station.chainage_m, chainage_m):
+            return last.scheduled_arrival_s
+        cruise_m_s = self.cruise_kmh / 3.6
+        for a, b in zip(self.stops, self.stops[1:], strict=False):
+            if not self.is_ahead(chainage_m, b.station.chainage_m):
+                profile = leg_profile(abs(b.station.chainage_m - a.station.chainage_m), cruise_m_s)
+                departed_s = a.scheduled_arrival_s + a.dwell_s
+                return departed_s + profile.time_at(abs(chainage_m - a.station.chainage_m))
+        return last.scheduled_arrival_s
 
     def next_stop(self, chainage_m: float) -> ScheduledStop | None:
         for stop in self.stops:
-            ahead = (
-                stop.station.chainage_m > chainage_m + 1e-6
-                if self.direction_forward
-                else stop.station.chainage_m < chainage_m - 1e-6
-            )
-            if ahead:
+            gap = abs(stop.station.chainage_m - chainage_m)
+            if gap > 1e-6 and self.is_ahead(stop.station.chainage_m, chainage_m):
                 return stop
         return None
 
-    def current_stop(self, chainage_m: float, tolerance_m: float = 60.0) -> ScheduledStop | None:
+    def current_stop(self, chainage_m: float, tolerance_m: float = AT_PLATFORM_TOLERANCE_M) -> ScheduledStop | None:
         for stop in self.stops:
             if abs(stop.station.chainage_m - chainage_m) <= tolerance_m:
                 return stop
@@ -101,6 +109,9 @@ class TrainRunPlan:
         index = self.stops.index(stop)
         return self.stops[index + 1] if index + 1 < len(self.stops) else None
 
+    def stop_for(self, station_code: str) -> ScheduledStop | None:
+        return next((s for s in self.stops if s.station.station.code == station_code), None)
+
 
 def build_run_plan(
     route: RailwayRoute,
@@ -110,34 +121,36 @@ def build_run_plan(
 ) -> TrainRunPlan:
     ordered = route.stations if direction_forward else list(reversed(route.stations))
     if train_type == "FAST":
-        stops_stations = [sc for sc in ordered if sc.station.code not in FAST_SKIP_CODES]
+        halts = [sc for sc in ordered if sc.station.fast_halt]
         cruise_kmh = FAST_CRUISE_KMH
     else:
-        stops_stations = ordered
+        halts = ordered
         cruise_kmh = SLOW_CRUISE_KMH
+    if len(halts) < 2:
+        raise ValueError(f"{route.seed.code} has no {train_type} service with two or more halts")
 
     cruise_m_s = cruise_kmh * 1000 / 3600
     stops: list[ScheduledStop] = []
     elapsed_s = 0.0
-    prev_chainage = stops_stations[0].chainage_m
-    for i, sc in enumerate(stops_stations):
+    for i, sc in enumerate(halts):
         if i > 0:
-            leg_m = abs(sc.chainage_m - prev_chainage)
-            elapsed_s += leg_m / cruise_m_s
-        dwell_s = 0.0 if i == len(stops_stations) - 1 else AVERAGE_DWELL_S
+            elapsed_s += leg_run_time_s(abs(sc.chainage_m - halts[i - 1].chainage_m), cruise_m_s)
+        dwell_s = 0.0 if i == len(halts) - 1 else PLANNED_DWELL_S
         stops.append(ScheduledStop(station=sc, scheduled_arrival_s=elapsed_s, dwell_s=dwell_s))
         elapsed_s += dwell_s
-        prev_chainage = sc.chainage_m
 
     return TrainRunPlan(
         train_id=train_id,
         train_type=train_type,
         direction_forward=direction_forward,
-        route_line_code=route.line_seed.code,
+        route_code=route.seed.code,
+        line_code=route.seed.line.code,
         cruise_kmh=cruise_kmh,
         stops=tuple(stops),
     )
 
 
-def random_train_type(rng: random.Random) -> TrainType:
-    return "FAST" if rng.random() < 0.4 else "SLOW"
+def random_train_type(rng: random.Random, route: RailwayRoute) -> TrainType:
+    if not route.seed.has_fast_service:
+        return "SLOW"
+    return "FAST" if rng.random() < FAST_SHARE else "SLOW"

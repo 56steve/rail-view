@@ -5,7 +5,7 @@ from app.db.base import Base
 
 
 class Schedule(Base):
-    """Published timetable: one station-stop offset for a given line,
+    """Published timetable: one station-stop offset for a given route,
     direction, and train type template (not tied to a specific day's
     `TrainRun` - it's the reusable pattern a run is generated from).
     """
@@ -14,6 +14,7 @@ class Schedule(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     line_id: Mapped[int] = mapped_column(ForeignKey("railway_lines.id"), index=True)
+    track_id: Mapped[int] = mapped_column(ForeignKey("railway_tracks.id"), index=True)
     train_type: Mapped[str] = mapped_column(String(8))
     direction_forward: Mapped[bool] = mapped_column(Boolean)
     station_id: Mapped[int] = mapped_column(ForeignKey("stations.id"))

@@ -2,29 +2,28 @@
 
 This is the core of the "don't just place trains at raw GPS coordinates"
 requirement. Given a raw (possibly noisy) GPS fix, `RailwayRoute.match`
-finds the nearest point on the known railway centerline and returns:
+finds the nearest point on the line's real track centerline and returns:
 
-  - chainage_m:  distance along the route from its origin terminus to the
-                 projected point - this is the train's true rail-relative
+  - chainage_m:  distance along the track from the line's first station
+                 to the projected point - the train's true rail-relative
                  position, independent of GPS noise.
   - snapped lat/lon: the fix pulled onto the rail.
   - offset_m:    how far the raw fix was from the rail, so a wildly
-                 inaccurate fix (multipath, tunnel exit glitch, etc.) can be
-                 flagged/rejected by the position processor instead of
-                 being trusted.
+                 inaccurate fix (multipath, bridge/tunnel glitch) can be
+                 rejected by the position processor instead of trusted.
 
-The route geometry is built once (in local planar metres - see
-`app.services.geometry`) from the station seed data and cached, since it
-never changes at runtime for a fixed line.
+Each route's geometry is built once (in local planar metres - see
+`app.services.geometry`) from the OSM-derived track and cached.
 """
 
 import math
 from dataclasses import dataclass
 from functools import lru_cache
+from itertools import pairwise
 
 from shapely.geometry import LineString, Point
 
-from app.data.mumbai_network import RAILWAY_LINES, LineSeed, StationSeed
+from app.data.mumbai_network import NetworkDataError, RouteSeed, StationSeed, load_routes
 from app.services.geometry import LocalPoint, to_latlon, to_local
 
 
@@ -43,24 +42,23 @@ class StationChainage:
 
 
 class RailwayRoute:
-    """A single directional corridor (e.g. Thane -> Dadar) as a matchable line."""
+    """One route's track as a matchable, chainage-addressable centerline."""
 
-    def __init__(self, line: LineSeed) -> None:
-        self.line_seed = line
-        ordered = sorted(line.stations, key=lambda s: s.sequence)
-        self._stations = ordered
+    def __init__(self, route: RouteSeed) -> None:
+        self.seed = route
+        local = [to_local(lat, lon) for lat, lon in route.track]
+        self._geometry = LineString([(p.x, p.y) for p in local])
 
-        local_points = [to_local(s.lat, s.lon) for s in ordered]
-        self._geometry = LineString([(p.x, p.y) for p in local_points])
-
-        station_chainages: list[StationChainage] = []
-        running_m = 0.0
-        for i, (point, station) in enumerate(zip(local_points, ordered, strict=True)):
-            if i > 0:
-                prev = local_points[i - 1]
-                running_m += math.hypot(point.x - prev.x, point.y - prev.y)
-            station_chainages.append(StationChainage(station=station, chainage_m=running_m))
-        self._station_chainages = station_chainages
+        self._station_chainages = []
+        for station in route.stations:
+            p = to_local(station.lat, station.lon)
+            chainage = self._geometry.project(Point(p.x, p.y))
+            self._station_chainages.append(StationChainage(station=station, chainage_m=chainage))
+        for a, b in pairwise(self._station_chainages):
+            if b.chainage_m <= a.chainage_m:
+                raise NetworkDataError(
+                    f"{route.code}: {b.station.code} does not lie after {a.station.code} along the track"
+                )
 
     @property
     def length_m(self) -> float:
@@ -76,13 +74,12 @@ class RailwayRoute:
         raw_point = Point(local.x, local.y)
         chainage = self._geometry.project(raw_point)
         snapped = self._geometry.interpolate(chainage)
-        offset_m = raw_point.distance(snapped)
         snapped_lat, snapped_lon = to_latlon(LocalPoint(x=snapped.x, y=snapped.y))
         return TrackMatch(
             chainage_m=chainage,
             snapped_lat=snapped_lat,
             snapped_lon=snapped_lon,
-            offset_m=offset_m,
+            offset_m=raw_point.distance(snapped),
         )
 
     def position_at_chainage(self, chainage_m: float) -> tuple[float, float]:
@@ -92,7 +89,7 @@ class RailwayRoute:
         return to_latlon(LocalPoint(x=point.x, y=point.y))
 
     def heading_deg_at_chainage(self, chainage_m: float) -> float:
-        """Compass bearing (0=N, 90=E) of the track direction of increasing chainage."""
+        """Compass bearing (0=N, 90=E) of the track in the direction of increasing chainage."""
         probe_m = 5.0
         a = max(0.0, chainage_m - probe_m)
         b = min(self.length_m, chainage_m + probe_m)
@@ -100,8 +97,7 @@ class RailwayRoute:
             b = min(self.length_m, a + probe_m)
         pa = self._geometry.interpolate(a)
         pb = self._geometry.interpolate(b)
-        dx, dy = pb.x - pa.x, pb.y - pa.y
-        return math.degrees(math.atan2(dx, dy)) % 360
+        return math.degrees(math.atan2(pb.x - pa.x, pb.y - pa.y)) % 360
 
     def current_station(self, chainage_m: float, tolerance_m: float = 60.0) -> StationChainage | None:
         for sc in self._station_chainages:
@@ -118,10 +114,14 @@ class RailwayRoute:
                 return sc
         return None
 
-    def terminus_station(self, direction_forward: bool) -> StationChainage:
-        return self._station_chainages[-1] if direction_forward else self._station_chainages[0]
-
 
 @lru_cache
-def get_route(line_code: str = "CR") -> RailwayRoute:
-    return RailwayRoute(RAILWAY_LINES[line_code])
+def get_route(route_code: str) -> RailwayRoute:
+    routes = load_routes()
+    if route_code not in routes:
+        raise KeyError(f"unknown route code '{route_code}'")
+    return RailwayRoute(routes[route_code])
+
+
+def get_all_routes() -> dict[str, RailwayRoute]:
+    return {code: get_route(code) for code in load_routes()}

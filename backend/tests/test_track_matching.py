@@ -1,69 +1,60 @@
+import pytest
+
 from app.services.track_matching import get_route
 
 
-def test_route_length_is_positive_and_plausible() -> None:
-    route = get_route("CR")
-    # Thane to Dadar is roughly 20km by rail; a straight-line placeholder
-    # polyline (see app/data/mumbai_network.py) sums slightly long because
-    # it cuts corners as straight segments rather than the true curve, but
-    # should stay in a plausible neighbourhood of the real distance.
-    assert 15_000 < route.length_m < 30_000
-
-
-def test_station_chainage_is_monotonically_increasing() -> None:
-    route = get_route("CR")
-    chainages = [sc.chainage_m for sc in route.stations]
-    assert chainages == sorted(chainages)
-    assert chainages[0] == 0.0
+def _station(route_code: str, station_code: str):
+    return next(sc for sc in get_route(route_code).stations if sc.station.code == station_code)
 
 
 def test_matching_a_station_exactly_returns_near_zero_offset() -> None:
-    route = get_route("CR")
-    ghatkopar = next(sc for sc in route.stations if sc.station.code == "GC")
+    route = get_route("CR-KSRA")
+    ghatkopar = _station("CR-KSRA", "GC")
     match = route.match(ghatkopar.station.lat, ghatkopar.station.lon)
     assert match.offset_m < 1.0
     assert abs(match.chainage_m - ghatkopar.chainage_m) < 1.0
 
 
 def test_matching_an_offset_point_snaps_onto_the_track() -> None:
-    route = get_route("CR")
-    kurla = next(sc for sc in route.stations if sc.station.code == "KRL")
-    # ~50m east of Kurla station - not on the line, so it must be pulled
-    # back onto the rail rather than reported as-is.
-    nudged_lon = kurla.station.lon + 0.0006
-    match = route.match(kurla.station.lat, nudged_lon)
+    route = get_route("CR-KSRA")
+    kurla = _station("CR-KSRA", "CLA")
+    # ~60m east of the station: must be pulled onto the rail, not reported as-is.
+    match = route.match(kurla.station.lat, kurla.station.lon + 0.0006)
     assert match.offset_m > 10.0
-    assert (match.snapped_lat, match.snapped_lon) != (kurla.station.lat, nudged_lon)
-    # Near a station the polyline bends, so the nearest point can shift
-    # along the corner by somewhat more than the raw perpendicular offset -
-    # still expected to land close to the station, not somewhere else on
-    # the route entirely.
     assert abs(match.chainage_m - kurla.chainage_m) < 100.0
 
 
 def test_position_at_chainage_is_the_inverse_of_match() -> None:
-    route = get_route("CR")
-    original_chainage = 4200.0
-    lat, lon = route.position_at_chainage(original_chainage)
+    route = get_route("WR-BVI")
+    lat, lon = route.position_at_chainage(12_345.0)
     match = route.match(lat, lon)
-    assert abs(match.chainage_m - original_chainage) < 1.0
+    assert match.chainage_m == pytest.approx(12_345.0, abs=1.0)
     assert match.offset_m < 0.5
 
 
-def test_heading_flips_roughly_180_degrees_between_directions() -> None:
-    route = get_route("CR")
-    forward_heading = route.heading_deg_at_chainage(3000.0)
-    # There's no reverse-direction geometry (single centerline), but a
-    # heading value should always be a valid compass bearing.
-    assert 0.0 <= forward_heading < 360.0
+def test_position_at_chainage_clamps_to_the_track_ends() -> None:
+    route = get_route("THR-VSH")
+    assert route.position_at_chainage(-500) == route.position_at_chainage(0)
+    assert route.position_at_chainage(route.length_m + 500) == route.position_at_chainage(route.length_m)
+
+
+def test_heading_is_a_valid_bearing_and_follows_the_line() -> None:
+    # Western line runs broadly north from Churchgate towards Borivali.
+    route = get_route("WR-BVI")
+    heading = route.heading_deg_at_chainage(route.length_m * 0.7)
+    assert 0.0 <= heading < 360.0
+    assert heading > 300 or heading < 60
 
 
 def test_next_station_respects_direction() -> None:
-    route = get_route("CR")
-    mid_chainage = route.stations[3].chainage_m
-    forward_next = route.next_station(mid_chainage, direction_forward=True)
-    backward_next = route.next_station(mid_chainage, direction_forward=False)
-    assert forward_next is not None
-    assert backward_next is not None
-    assert forward_next.chainage_m > mid_chainage
-    assert backward_next.chainage_m < mid_chainage
+    route = get_route("HR-VSH")
+    mid = route.stations[5].chainage_m + 10
+    forward_next = route.next_station(mid, direction_forward=True)
+    backward_next = route.next_station(mid, direction_forward=False)
+    assert forward_next is not None and forward_next.chainage_m > mid
+    assert backward_next is not None and backward_next.chainage_m < mid
+
+
+def test_unknown_route_code_raises() -> None:
+    with pytest.raises(KeyError):
+        get_route("XX")

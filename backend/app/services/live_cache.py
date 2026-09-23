@@ -33,3 +33,9 @@ class LiveTrainCache:
                 self._latest[train_id] = update
             result.append(update)
         return result
+
+    def get(self, train_id: str, now_epoch: float | None = None) -> TrainPositionUpdate | None:
+        return next((u for u in self.snapshot(now_epoch) if u.train_id == train_id), None)
+
+    def live_train_ids(self, now_epoch: float | None = None) -> set[str]:
+        return {u.train_id for u in self.snapshot(now_epoch) if u.status == "live"}

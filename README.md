@@ -1,132 +1,103 @@
-# RailPulse
+# RailView
 
-Real-time 3D tracking for Mumbai's suburban local trains. MVP scope: the
-Central Line's Thane&harr;Dadar corridor, with simulated (not live) train
-telemetry running through the same pipeline a real feed would use.
+Real-time 3D tracking for Mumbai's suburban local trains, built mobile-first.
+It covers four lines:
 
-The 3D view isn't decoration — it's how you tell where your train is, how
-far it is from a station, and whether it's on time. Camera, track
-geometry, and train positions all come from the same rail-relative
-coordinate system end to end (backend chainage &rarr; WebSocket &rarr;
-client scene), so nothing is faked for visual effect except the physical
-size of the train model (see `frontend/components/three/TrainMesh.tsx`).
-
-| Network view | Journey view (follow camera) |
+| Line | Routes |
 | --- | --- |
-| ![Network view: the Thane-Dadar corridor with several live trains](docs/screenshots/network-view.png) | ![Journey view: a selected train with its follow camera and info panel](docs/screenshots/journey-view.png) |
+| Western | Churchgate – Borivali |
+| Central | CSMT – Kasara and CSMT – Karjat (forking at Kalyan) |
+| Harbour | CSMT – Vashi |
+| Trans-Harbour | Thane – Vashi |
 
-<img src="docs/screenshots/mobile-journey-view.png" alt="Mobile viewport of the journey view" width="280" />
+Train movements are **simulated**. They run through the same pipeline a
+real feed would use, and no authorised real-time feed for Mumbai locals
+is connected yet (see [Live data](#live-data)).
 
-## Architecture
+The 3D view shows where your train is, how far it is from the next
+station, and whether it's on time. Station positions, track centrelines,
+the individual tracks and platforms at every station, buildings and the
+coastline all come from OpenStreetMap. Train positions live in the same
+rail-relative coordinate system from the backend to the scene.
+
+## How it works
 
 ```
-Telemetry source (simulator today, authorized railway API later)
+Telemetry source (simulator today, authorised railway feed later)
         |  raw, noisy GPS fixes
         v
-Position processor  --  snaps each fix onto the track (GPS-to-track
-        |                matching), derives speed/direction from
-        |                consecutive chainage deltas, enriches with
-        |                schedule (current/next station, ETA, delay)
+Position processor   snaps each fix onto the train's route (GPS-to-track
+        |            matching), smooths chainage with a Kalman filter to
+        |            get speed and direction, and compares progress with
+        |            the timetable for current/next station, ETA and delay
         v
-Live train cache  --  last-known position per train; marks a train
-        |              "stale" instead of inventing a new position
-        |              when its telemetry goes quiet
+Live train cache     last-known state per train; marks a train "stale"
+        |            after 15 s of silence instead of inventing positions
         v
-WebSocket hub  --  one broadcast reaches every connected client
+WebSocket hub        one snapshot per tick to every client (/ws/live)
         v
-Next.js client  --  interpolates motion between snapshots, converts
-                     lat/lon to scene coordinates, renders the 3D map
+Next.js client       interpolates along the track between snapshots and
+                     renders trains on the track their direction runs on
 ```
 
-PostGIS holds the *static* network topology (stations, tracks, segments,
-schedules) — not live positions. Live positions stay in memory and go out
-over the WebSocket; writing every tick of every train to Postgres would
-be the "excessive load" the product spec explicitly says to avoid. See
-`backend/app/models/train.py:TrainPosition` for where periodic history
-*would* be persisted for analytics/replay.
+### Network model
 
-### Backend (`backend/`)
+- A **line** (Central, Western...) is what commuters see: a name and a
+  colour. A **route** is one end-to-end path trains run on. Central has
+  two routes that share the trunk up to Kalyan. Track matching,
+  simulation and timetables all work per route.
+- **Chainage** (metres along a route from its first station) is how
+  every position is addressed on both the server and the client.
+- **Left-hand running.** Mumbai runs on the left, so Up trains (towards
+  CSMT or Churchgate) and Down trains keep to different tracks. The data
+  build measures, every 10 m along each route, the sideways offset to
+  each direction's real track. The client draws trains there, and at a
+  terminus both directions share the platform track before crossing over.
 
-- **`app/services/geometry.py`** — WGS84 &harr; local planar metres
-  (equirectangular approximation around a fixed origin). Mirrored exactly
-  in `frontend/lib/geo.ts` so a position computed server-side lands in the
-  same spot in the 3D scene.
-- **`app/services/track_matching.py`** — builds the route as a Shapely
-  `LineString` in local metres; `RailwayRoute.match()` projects a raw
-  GPS fix onto it and returns chainage (distance along the route),
-  snapped lat/lon, and how far off the rail the raw fix was.
-- **`app/services/simulator/`** — `SimulatedTelemetrySource` runs a
-  trapezoidal accel/cruise/brake physics model per train and emits
-  *noisy* GPS fixes (positional jitter + occasional dropped fixes) — it
-  does not hand the processor a clean answer. `schedule.py` builds a
-  timetable per train type/direction that the processor compares actual
-  progress against, which is how delay is computed (not a random number).
-- **`app/services/position_processor.py`** — the pipeline's middle:
-  match &rarr; reject implausible fixes &rarr; derive speed/direction
-  from chainage deltas &rarr; enrich with schedule &rarr;
-  `TrainPositionUpdate`.
-- **`app/services/telemetry.py`** — the `TelemetrySource` /
-  `ScheduleProvider` protocols. A future `LiveRailwayApiSource` implements
-  the same two protocols; nothing downstream changes.
-- **`app/api/ws.py`** — `/ws/live`, one broadcast per tick to every
-  connected client.
-- **`app/models/`** — the full PostGIS-backed schema (stations,
-  railway_lines, railway_tracks, track_segments, stations_on_routes,
-  trains, train_runs, train_positions, schedules), with a hand-written
-  Alembic migration (`alembic/versions/0001_initial_schema.py`) and a seed
-  script (`scripts/seed_db.py`) that loads the same Central Line data the
-  simulator uses.
+### Backend (`backend/`, FastAPI)
 
-### Frontend (`frontend/`)
+- `scripts/network_definitions.py`: the curated part of the network:
+  which stations each route calls at, their order and fast halts.
+- `scripts/build_osm_data.py`: builds everything else from OpenStreetMap
+  through the Overpass API. It snaps stations onto the rail graph,
+  map-matches each route through that graph, and collects every running
+  track and platform near the routes. It also derives each direction's
+  running lane, and bakes buildings and land into compact tiles for the
+  client. Overpass responses are cached in `backend/.osm-cache/`
+  (git-ignored).
+- `app/services/track_matching.py`: GPS fix → chainage on a route.
+- `app/services/track_filter.py`: constant-velocity Kalman filter over
+  chainage.
+- `app/services/simulator/`: the simulated feed. Trains follow a shared
+  speed profile, dwell times vary, and each rake forms its return working
+  after a layover, so delays emerge instead of being made up. GPS fixes
+  get jitter and dropouts.
+- `app/services/position_processor.py`: the pipeline's middle stage.
+- `app/services/journey_planner.py`: direct trains between two stations
+  from the live timetable, or where to change (another line, or the
+  other Central branch).
+- `app/services/telemetry.py`: the `TelemetrySource` / `ScheduleProvider`
+  protocols a real feed implements.
+- `app/models/` + `alembic/`: the PostGIS schema for the static network
+  and timetables (`scripts/seed_db.py` loads it). The live path runs in
+  memory and doesn't need a database.
 
-- **`lib/geo.ts`** — geographic &rarr; Three.js scene coordinates.
-- **`lib/interpolate.ts`** — client-side motion smoothing between the
-  last two WebSocket snapshots (the server ticks once a second; without
-  this a train would visibly jump instead of glide).
-- **`lib/store.ts`** — Zustand store: route geometry, per-train
-  from/to snapshot pairs, selection, view mode, connection status.
-- **`lib/useLiveTrains.ts`** — owns the WebSocket connection, with
-  backoff reconnect. Never clears known trains on disconnect — see
-  `components/ui/ConnectionBadge.tsx` / `TrainInfoPanel.tsx`'s "stale"
-  state instead.
-- **`components/three/`** — `RailwayTrack` (the actual route polyline as
-  a tube), `StationMarkers`, `TrainMesh` (procedural EMU model + a
-  distance-scaled "beacon" so a train stays legible zoomed out to the
-  whole network, not just up close), `CameraRig` (orbit controls +
-  auto-framing + follow-selected-train chase cam).
+### Frontend (`frontend/`, Next.js + React Three Fiber)
 
-## Known limitations (MVP scope, by design)
-
-- **One route.** Only Central Line Thane&harr;Dadar. `app/data/mumbai_network.py`
-  is structured so Western/Harbour/Trans-Harbour lines are additional
-  `LineSeed` entries — no other code changes needed to add one, only
-  sourcing its station geometry.
-- **Approximate track geometry.** Station coordinates are from general
-  public geographic knowledge, not a surveyed feed, and the track
-  polyline is straight segments between stations, not the true curved
-  centerline. Documented in `app/data/mumbai_network.py`; replace with an
-  official GTFS feed or OSM `railway=rail` ways before this touches real
-  commuters.
-- **No live data provider.** There is no public, freely-licensed
-  real-time GPS feed for Mumbai suburban trains. `TelemetrySource` /
-  `ScheduleProvider` are the seam for plugging one in once you have an
-  authorized data partnership (IRCTC/CRIS or a licensed vendor) — nothing
-  else in the pipeline needs to change.
-- **PostGIS schema exists but isn't wired to the live path.** Migration
-  and seed script are written and lint/type-check clean, but weren't run
-  against a live Postgres in this environment (no Docker available in
-  this session). `docker compose up -d postgres && cd backend && uv run
-  alembic upgrade head && uv run python scripts/seed_db.py` should do it
-  on a machine with Docker.
-- **Dark-first UI only.** No light theme yet; tokens are already CSS
-  variables in `app/globals.css` for when that's added.
-- **Journey planner is minimal.** Source/destination pick any two
-  stations on the one route; there's no multi-route pathfinding since
-  there's only one route.
+- `lib/geo.ts` mirrors the backend projection exactly.
+- `lib/track.ts` addresses a route by chainage, and `lib/lanes.ts` offsets
+  a chainage onto the direction's running track.
+- `lib/motion.ts` interpolates between snapshots along the track.
+- `components/three/` holds the scene: ground and coastline, building
+  tiles, individual tracks and platforms, route lines, and trains. Trains
+  are a true-scale 12-coach rake up close and a legible glyph from far
+  away. The camera rig handles network framing, following a train and 2D.
+- `components/screens/` holds the app screens: Explore, Follow, Train
+  details, Plan journey, Trains, Saved, More.
 
 ## Running locally
 
-### Backend
+Backend (in-memory, no database needed):
 
 ```bash
 cd backend
@@ -134,26 +105,49 @@ uv sync
 uv run uvicorn app.main:app --reload --port 8000
 ```
 
-Runs entirely in-memory (simulator + WebSocket hub) — no database
-required to see live trains. `uv run pytest` / `uv run ruff check .` for
-tests and lint.
-
-### Frontend
+Frontend:
 
 ```bash
 cd frontend
 npm install
 cp .env.local.example .env.local
-npm run dev
+npm run dev -- --port 3010
 ```
 
-Open the printed localhost URL. The client fetches route geometry over
-REST once, then live positions over `/ws/live`.
+Checks: `uv run ruff check . && uv run pytest` in `backend/`;
+`npm run lint && npx tsc --noEmit && npm run build` in `frontend/`.
 
-### Full stack with PostGIS/Redis (optional, needs Docker)
+### Rebuilding the map data
 
 ```bash
-cp .env.example .env
-docker compose up -d postgres redis
-cd backend && uv run alembic upgrade head && uv run python scripts/seed_db.py
+cd backend
+uv run python scripts/build_osm_data.py            # uses the local Overpass cache
+uv run python scripts/build_osm_data.py --refresh  # refetches from OpenStreetMap
 ```
+
+This regenerates `backend/app/data/generated/network.json` and
+`frontend/public/city/*`. Both are committed, so you don't need to run
+it just to work on the app.
+
+### Database (optional)
+
+With a PostGIS database reachable at `DATABASE_URL`:
+
+```bash
+cd backend
+uv run alembic upgrade head
+uv run python scripts/seed_db.py
+```
+
+## Live data
+
+There is no public, freely licensed real-time GPS feed for Mumbai locals.
+A live source plugs in by implementing `TelemetrySource` and
+`ScheduleProvider`; nothing downstream changes. Real timetables (for
+example the m-Indicator schedule) will replace the simulator's generated
+timetable.
+
+## Attribution
+
+Map data © OpenStreetMap contributors, available under the
+[ODbL](https://www.openstreetmap.org/copyright).
