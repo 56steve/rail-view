@@ -26,7 +26,7 @@ def test_planar_distance_matches_haversine_across_the_network() -> None:
     # Churchgate to Kasara is the widest span in the network; the
     # equirectangular approximation should stay within ~0.5% there.
     routes = load_routes()
-    churchgate = routes["WR-BVI"].stations[0]
+    churchgate = routes["WR-VR"].stations[0]
     kasara = routes["CR-KSRA"].stations[-1]
     a, b = to_local(churchgate.lat, churchgate.lon), to_local(kasara.lat, kasara.lon)
     planar_m = ((a.x - b.x) ** 2 + (a.y - b.y) ** 2) ** 0.5

@@ -20,7 +20,7 @@ def test_network_returns_all_lines_with_real_geometry(client) -> None:
     body = client.get("/api/network").json()
     assert {line["code"] for line in body["lines"]} == {"WR", "CR", "HR", "THR"}
     assert {r["line_code"] for r in body["routes"]} == {"WR", "CR", "HR", "THR"}
-    assert {r["route_id"] for r in body["routes"] if r["line_code"] == "CR"} == {"CR-KSRA", "CR-KJT"}
+    assert {r["route_id"] for r in body["routes"] if r["line_code"] == "CR"} == {"CR-KSRA", "CR-KP"}
     assert "OpenStreetMap" in body["attribution"]
     western = next(r for r in body["routes"] if r["line_code"] == "WR")
     assert len(western["polyline"]) > 50

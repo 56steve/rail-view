@@ -10,7 +10,7 @@ import type { ScenePoint } from "@/lib/geo";
 import { routeSpans } from "@/lib/network";
 import { loadRailLayout, type RailLayout } from "@/lib/railLayout";
 import { useRailView } from "@/lib/store";
-import { SCENE } from "./palette";
+import { usePalette } from "./palette";
 import {
   SINGLE_TRACK_BED_WIDTH_M,
   extrudedFootprintsGeometry,
@@ -56,6 +56,7 @@ function RouteGlow({ points, color, dimmed }: { points: ScenePoint[]; color: str
  * two-track branch, a four-track main line and a nine-track junction
  * each look like what's actually on the ground. */
 function PhysicalRailway() {
+  const palette = usePalette();
   const [layout, setLayout] = useState<RailLayout | null>(null);
   const texture = useMemo(() => trackBedTexture(), []);
 
@@ -104,7 +105,7 @@ function PhysicalRailway() {
       )}
       {platforms && (
         <mesh geometry={platforms}>
-          <meshStandardMaterial color={SCENE.platform} roughness={0.85} />
+          <meshStandardMaterial color={palette.platform} roughness={0.85} />
         </mesh>
       )}
     </group>
@@ -122,7 +123,7 @@ export function RailLines() {
       <PhysicalRailway />
       {spans.map((span) => (
         <RouteGlow
-          key={span.routeId}
+          key={span.key}
           points={span.points}
           color={span.color}
           dimmed={lineFilter !== null && lineFilter !== span.lineCode}

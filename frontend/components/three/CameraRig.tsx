@@ -8,7 +8,7 @@ import type { MapControls as MapControlsImpl } from "three-stdlib";
 import { laneSample } from "@/lib/lanes";
 import { trainPose } from "@/lib/motion";
 import { focusedTrainId, useRailView, type CameraRequest } from "@/lib/store";
-import { SCENE } from "./palette";
+import { usePalette } from "./palette";
 
 const OVERVIEW_POLAR = THREE.MathUtils.degToRad(40);
 const MAX_POLAR_3D = THREE.MathUtils.degToRad(80);
@@ -112,6 +112,7 @@ function followPose(trainId: string, view2D: boolean): Pose | null {
  */
 export function CameraRig() {
   const controls = useRef<MapControlsImpl>(null);
+  const palette = usePalette();
   const fog = useRef<THREE.FogExp2>(null);
   const rig = useRef({
     mode: "overview" as "overview" | "follow",
@@ -270,7 +271,7 @@ export function CameraRig() {
 
   return (
     <>
-      <fogExp2 ref={fog} attach="fog" args={[SCENE.background, 0.00001]} />
+      <fogExp2 ref={fog} attach="fog" args={[palette.fog, 0.00001]} />
       <MapControls
         ref={controls}
         makeDefault

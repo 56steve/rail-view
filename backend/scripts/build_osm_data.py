@@ -8,6 +8,8 @@ Outputs (committed; regenerated only when this script runs):
   frontend/public/city/tile-NNN.bin        packed building footprints
   frontend/public/city/tracks.bin          every running track + platform along the routes
   frontend/public/city/land.json           land + inland water polygons
+  frontend/public/city/landcover.bin       parks, forest, mangrove, farmland, beaches, urban areas
+  frontend/public/city/roads.bin           road centrelines by class
 
 Station membership/order comes from `network_definitions.py`; positions,
 track geometry, the individual tracks and platforms at each station,
@@ -37,7 +39,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import numpy
-from shapely import STRtree, make_valid
+from shapely import STRtree, constrained_delaunay_triangles, make_valid
 from shapely.geometry import LineString, MultiLineString, MultiPolygon, Point, Polygon, box
 from shapely.geometry.polygon import orient
 from shapely.ops import linemerge, polygonize, unary_union
@@ -55,7 +57,10 @@ NETWORK_OUT = BACKEND_DIR / "app" / "data" / "generated" / "network.json"
 CITY_OUT_DIR = REPO_DIR / "frontend" / "public" / "city"
 
 # south, west, north, east
-BBOX = (18.86, 72.76, 19.68, 73.52)
+BBOX = (18.72, 72.76, 19.68, 73.52)
+# Land, sea and inland water extend well past the network so the edge of
+# the data is never on screen: past it everything reads as open sea.
+LAND_BBOX = (18.2, 72.2, 20.3, 74.2)
 
 MIRRORS = (
     "https://overpass-api.de/api/interpreter",
@@ -72,6 +77,12 @@ EXCLUDED_NAME_FRAGMENTS = ("freight corridor", "port trust", "jnpt", "fci", "car
 SNAP_RADIUS_M = 300.0
 SNAP_MAX_CANDIDATES = 40
 SNAP_WEIGHT = 2.0
+# Added to the snap cost of track farther from a station than
+# MAX_STATION_OFFSET_M, so the path goes through the station whenever it
+# can - even if that means running into a platform and reversing out
+# (Panvel - Goregaon trains reverse at Wadala Road) rather than cutting
+# the corner through the junction.
+FAR_SNAP_PENALTY = 5000.0
 # Kept well under the rail gauge so a train drawn on the route centreline
 # sits on the same rails as the individually drawn OSM track it follows.
 TRACK_SIMPLIFY_M = 0.25
@@ -120,6 +131,51 @@ COORD_QUANTUM_M = 0.5
 LAND_SIMPLIFY_M = 8.0
 MIN_WATER_AREA_M2 = 150_000.0
 
+# Land cover and roads: the network plus a margin the client fades them
+# out across, so they blend into plain land rather than stopping at a line.
+# Fetched as a grid of tiles anchored at a fixed origin, so extending the
+# area only adds tiles and every cached tile stays valid. Tile (r, c)
+# spans latitudes origin + r*cell .. +(r+1)*cell, and so on.
+ENVIRONMENT_GRID_ORIGIN = (18.78, 72.68)
+ENVIRONMENT_CELL_DEG = (0.245, 0.23)
+ENVIRONMENT_ROWS = range(-1, 4)  # row -1 covers the Khopoli branch
+ENVIRONMENT_COLS = range(0, 4)
+ENVIRONMENT_BBOX = (
+    ENVIRONMENT_GRID_ORIGIN[0] + ENVIRONMENT_ROWS.start * ENVIRONMENT_CELL_DEG[0],
+    ENVIRONMENT_GRID_ORIGIN[1] + ENVIRONMENT_COLS.start * ENVIRONMENT_CELL_DEG[1],
+    ENVIRONMENT_GRID_ORIGIN[0] + ENVIRONMENT_ROWS.stop * ENVIRONMENT_CELL_DEG[0],
+    ENVIRONMENT_GRID_ORIGIN[1] + ENVIRONMENT_COLS.stop * ENVIRONMENT_CELL_DEG[1],
+)
+LANDCOVER_SIMPLIFY_M = 4.0
+MIN_LANDCOVER_AREA_M2 = 300.0
+# Built-up tints matter at neighbourhood scale, not per compound.
+MIN_URBAN_LANDCOVER_AREA_M2 = 1000.0
+URBAN_LANDCOVER_CLASSES = {"residential", "commercial", "industrial"}
+# landcover.bin stores vertices as 16-bit offsets from the area's centre
+# at this resolution - finer than the simplification tolerance above.
+LANDCOVER_QUANTUM_M = 2.5
+# Order matters: the client draws classes in this order (urban first,
+# greens and sand over them) and landcover.bin stores them in it.
+LANDCOVER_CLASSES = (
+    "residential",
+    "commercial",
+    "industrial",
+    "grass",
+    "farmland",
+    "scrub",
+    "forest",
+    "wetland",
+    "mangrove",
+    "sand",
+)
+ROAD_CLASSES = ("motorway", "trunk", "primary", "secondary", "tertiary", "minor")
+# Minor streets only matter close up, and close up is along the railway.
+MINOR_ROAD_CORRIDOR_M = 2500.0
+ROAD_SIMPLIFY_M = 1.0
+# roads.bin stores each polyline's first point as i32 and the rest as i16
+# steps, all at this resolution.
+ROAD_QUANTUM_M = 0.5
+
 
 class BuildError(RuntimeError):
     pass
@@ -158,8 +214,8 @@ def overpass(query: str, cache_key: str, refresh: bool) -> dict:
     raise BuildError(f"Overpass query '{cache_key}' failed on every mirror:\n" + "\n".join(failures))
 
 
-def bbox_clause() -> str:
-    s, w, n, e = BBOX
+def bbox_clause(bbox: tuple[float, float, float, float] = BBOX) -> str:
+    s, w, n, e = bbox
     return f"({s},{w},{n},{e})"
 
 
@@ -349,10 +405,13 @@ def match_route_to_graph(route: RouteDef, stations: list[ResolvedStation], graph
     candidate_sets = []
     for station in stations:
         p = to_local(station.lat, station.lon)
-        candidates = graph.candidates(p.x, p.y, SNAP_RADIUS_M)
+        radius = station.definition.reversal_snap_m or SNAP_RADIUS_M
+        candidates = graph.candidates(p.x, p.y, radius)
         if not candidates:
-            raise BuildError(f"{route.code}: no track within {SNAP_RADIUS_M:.0f}m of {station.definition.ref}")
-        candidate_sets.append(candidates)
+            raise BuildError(f"{route.code}: no track within {radius:.0f}m of {station.definition.ref}")
+        candidate_sets.append(
+            {node: d + (FAR_SNAP_PENALTY if d > MAX_STATION_OFFSET_M else 0.0) for node, d in candidates.items()}
+        )
 
     cost = {node: d * SNAP_WEIGHT for node, d in candidate_sets[0].items()}
     stage_prev: list[dict[int, int]] = []
@@ -449,6 +508,26 @@ def write_network(routes: list[BuiltRoute]) -> None:
     NETWORK_OUT.parent.mkdir(parents=True, exist_ok=True)
     NETWORK_OUT.write_text(json.dumps(payload, indent=1) + "\n")
     print(f"  wrote {NETWORK_OUT.relative_to(REPO_DIR)}")
+
+
+def overpass_tiled(query_body: str, cache_prefix: str, refresh: bool) -> list[dict]:
+    """Run `query_body` (with a `{bbox}` placeholder) over the environment
+    tile grid and merge the results, dropping elements several tiles
+    return."""
+    (lat0, lon0), (dlat, dlon) = ENVIRONMENT_GRID_ORIGIN, ENVIRONMENT_CELL_DEG
+    seen: set[tuple[str, int]] = set()
+    elements: list[dict] = []
+    for r in ENVIRONMENT_ROWS:
+        for c in ENVIRONMENT_COLS:
+            tile = (lat0 + r * dlat, lon0 + c * dlon, lat0 + (r + 1) * dlat, lon0 + (c + 1) * dlon)
+            clause = "({:.5f},{:.5f},{:.5f},{:.5f})".format(*tile)
+            data = overpass(query_body.replace("{bbox}", clause), f"{cache_prefix}-r{r}c{c}", refresh)
+            for element in data["elements"]:
+                key = (element["type"], element["id"])
+                if key not in seen:
+                    seen.add(key)
+                    elements.append(element)
+    return elements
 
 
 # --------------------------------------------------------------------------
@@ -880,13 +959,211 @@ def ring_latlon(coords: Iterable[tuple[float, float]]) -> list[list[float]]:
     return out
 
 
-def build_land(refresh: bool) -> None:
-    coast = overpass(f'[out:json][timeout:180];way["natural"="coastline"]{bbox_clause()};out geom;', "coastline", refresh)
-    water = overpass(
-        f'[out:json][timeout:180];way["natural"="water"]{bbox_clause()};out geom;', "water", refresh
-    )
+def area_polygons(element: dict) -> list[Polygon]:
+    """Polygons for an OSM area: a closed way, or a multipolygon relation
+    (outer rings minus inner rings)."""
+    def ring_lines(role: str) -> list[LineString]:
+        return [
+            LineString([(p.x, p.y) for p in (to_local(g["lat"], g["lon"]) for g in member["geometry"])])
+            for member in element.get("members", [])
+            if member.get("role", "outer") == role and len(member.get("geometry") or []) >= 2
+        ]
 
-    s, w, n, e = BBOX
+    if element["type"] == "way":
+        geometry = element.get("geometry") or []
+        points = [(p.x, p.y) for p in (to_local(g["lat"], g["lon"]) for g in geometry)]
+        if len(points) < 4 or points[0] != points[-1]:
+            return []
+        return polygon_parts(make_valid(Polygon(points)))
+
+    outers = ring_lines("outer")
+    if not outers:
+        return []
+    shell = unary_union(list(polygonize(linemerge(MultiLineString(outers)))))
+    inners = ring_lines("inner")
+    if inners:
+        shell = shell.difference(unary_union(list(polygonize(linemerge(MultiLineString(inners))))))
+    return polygon_parts(make_valid(shell))
+
+
+def landcover_class(tags: dict) -> str | None:
+    landuse, natural, leisure = tags.get("landuse"), tags.get("natural"), tags.get("leisure")
+    if natural == "wetland":
+        return "mangrove" if tags.get("wetland") == "mangrove" else "wetland"
+    if natural in {"beach", "sand"}:
+        return "sand"
+    if landuse == "forest" or natural == "wood" or leisure == "nature_reserve":
+        return "forest"
+    if natural in {"scrub", "grassland", "heath", "bare_rock"}:
+        return "scrub"
+    if landuse in {"farmland", "orchard", "plant_nursery", "allotments"}:
+        return "farmland"
+    if landuse in {"grass", "meadow", "recreation_ground", "cemetery", "village_green"} or leisure in {
+        "park",
+        "garden",
+        "golf_course",
+        "pitch",
+        "stadium",
+    }:
+        return "grass"
+    if landuse == "residential":
+        return "residential"
+    if landuse in {"commercial", "retail"}:
+        return "commercial"
+    if landuse in {"industrial", "railway", "quarry", "military"}:
+        return "industrial"
+    return None
+
+
+def triangulate(poly: Polygon) -> tuple[list[tuple[float, float]], list[int]]:
+    vertices: list[tuple[float, float]] = []
+    lookup: dict[tuple[float, float], int] = {}
+    indices: list[int] = []
+    for triangle in constrained_delaunay_triangles(poly).geoms:
+        coords = list(triangle.exterior.coords)[:3]
+        for x, y in coords:
+            key = (round(x, 2), round(y, 2))
+            if key not in lookup:
+                lookup[key] = len(vertices)
+                vertices.append(key)
+            indices.append(lookup[key])
+    return vertices, indices
+
+
+def build_landcover(refresh: bool) -> None:
+    query = (
+        "[out:json][timeout:240];("
+        'wr["landuse"~"^(forest|grass|meadow|farmland|orchard|recreation_ground|cemetery|village_green|'
+        'residential|commercial|retail|industrial|plant_nursery|allotments|military|railway|quarry)$"]{bbox};'
+        'wr["natural"~"^(wood|scrub|grassland|heath|wetland|beach|sand|bare_rock)$"]{bbox};'
+        'wr["leisure"~"^(park|garden|golf_course|pitch|nature_reserve|stadium)$"]{bbox};'
+        ");out tags geom;"
+    )
+    elements = overpass_tiled(query, "landcover", refresh)
+    s, w, n, e = ENVIRONMENT_BBOX
+    sw, ne = to_local(s, w), to_local(n, e)
+    frame = box(sw.x, sw.y, ne.x, ne.y)
+
+    meshes: dict[str, tuple[list[tuple[float, float]], list[int]]] = {c: ([], []) for c in LANDCOVER_CLASSES}
+    counts = dict.fromkeys(LANDCOVER_CLASSES, 0)
+    for element in elements:
+        cls = landcover_class(element.get("tags", {}))
+        if cls is None:
+            continue
+        for poly in area_polygons(element):
+            if not poly.intersects(frame):
+                continue
+            clipped = poly.intersection(frame).simplify(LANDCOVER_SIMPLIFY_M)
+            min_area = MIN_URBAN_LANDCOVER_AREA_M2 if cls in URBAN_LANDCOVER_CLASSES else MIN_LANDCOVER_AREA_M2
+            for part in polygon_parts(make_valid(clipped)):
+                if part.area < min_area:
+                    continue
+                vertices, indices = triangulate(part)
+                mesh_vertices, mesh_indices = meshes[cls]
+                base = len(mesh_vertices)
+                mesh_vertices.extend(vertices)
+                mesh_indices.extend(base + i for i in indices)
+                counts[cls] += 1
+
+    # Header: the covered bbox (south, west, north, east) so the client can
+    # fade the layer out towards its edges, then the quantisation origin
+    # (local east, north) and step. Per class: vertices as i16 offsets,
+    # then indices as u16 where they fit (u32 otherwise).
+    centre = frame.centroid
+    chunks = [
+        b"RVC2",
+        struct.pack("<4d", *ENVIRONMENT_BBOX),
+        struct.pack("<3d", centre.x, centre.y, LANDCOVER_QUANTUM_M),
+        struct.pack("<I", len(LANDCOVER_CLASSES)),
+    ]
+    for cls in LANDCOVER_CLASSES:
+        vertices, indices = meshes[cls]
+        quantised = [
+            (round((x - centre.x) / LANDCOVER_QUANTUM_M), round((y - centre.y) / LANDCOVER_QUANTUM_M))
+            for x, y in vertices
+        ]
+        if any(not (-32768 <= qx <= 32767 and -32768 <= qy <= 32767) for qx, qy in quantised):
+            raise BuildError(f"land cover {cls}: a vertex overflows 16-bit quantisation")
+        chunks.append(struct.pack("<I", len(quantised)))
+        chunks.append(struct.pack(f"<{2 * len(quantised)}h", *(v for pair in quantised for v in pair)))
+        wide = len(vertices) > 65535
+        chunks.append(struct.pack("<BI", 4 if wide else 2, len(indices)))
+        chunks.append(struct.pack(f"<{len(indices)}{'I' if wide else 'H'}", *indices))
+    blob = b"".join(chunks)
+    (CITY_OUT_DIR / "landcover.bin").write_bytes(blob)
+    summary = ", ".join(f"{cls} {counts[cls]}" for cls in LANDCOVER_CLASSES)
+    print(f"  land cover: {summary}; {len(blob) / 1e6:.2f} MB")
+
+
+def road_class(tags: dict) -> str | None:
+    highway = (tags.get("highway") or "").removesuffix("_link")
+    if tags.get("tunnel") in {"yes", "building_passage"} or tags.get("area") == "yes":
+        return None
+    if highway in {"motorway", "trunk", "primary", "secondary", "tertiary"}:
+        return highway
+    if highway in {"residential", "unclassified", "living_street"}:
+        return "minor"
+    return None
+
+
+def build_roads(routes: list[BuiltRoute], refresh: bool) -> None:
+    query = (
+        "[out:json][timeout:240];("
+        'way["highway"~"^(motorway|trunk|primary|secondary|tertiary|motorway_link|trunk_link|primary_link|'
+        'secondary_link|tertiary_link|residential|unclassified|living_street)$"]{bbox};'
+        ");out tags geom;"
+    )
+    elements = overpass_tiled(query, "roads", refresh)
+    s, w, n, e = ENVIRONMENT_BBOX
+    sw, ne = to_local(s, w), to_local(n, e)
+    frame = box(sw.x, sw.y, ne.x, ne.y)
+    near_rail = unary_union(
+        [LineString(b.track_local).buffer(MINOR_ROAD_CORRIDOR_M) for b in routes]
+    ).simplify(50)
+
+    lines: dict[str, list[LineString]] = {c: [] for c in ROAD_CLASSES}
+    for element in elements:
+        cls = road_class(element.get("tags", {}))
+        geometry = element.get("geometry") or []
+        if cls is None or len(geometry) < 2:
+            continue
+        line = LineString([(p.x, p.y) for p in (to_local(g["lat"], g["lon"]) for g in geometry)])
+        region = frame if cls != "minor" else near_rail
+        if not line.intersects(region):
+            continue
+        for piece in line_parts(line.intersection(region)):
+            if piece.length > 5:
+                lines[cls].append(piece.simplify(ROAD_SIMPLIFY_M))
+
+    # Header: covered bbox, then the quantum. Per class: u32 polyline count;
+    # per polyline u32 n, i32 first (east, north), (n-1) x i16 steps.
+    chunks = [
+        b"RVR2",
+        struct.pack("<4d", *ENVIRONMENT_BBOX),
+        struct.pack("<d", ROAD_QUANTUM_M),
+        struct.pack("<I", len(ROAD_CLASSES)),
+    ]
+    for cls in ROAD_CLASSES:
+        chunks.append(struct.pack("<I", len(lines[cls])))
+        for line in lines[cls]:
+            points = [(round(x / ROAD_QUANTUM_M), round(y / ROAD_QUANTUM_M)) for x, y in line.coords]
+            steps = [(bx - ax, by - ay) for (ax, ay), (bx, by) in zip(points, points[1:], strict=False)]
+            if any(not (-32768 <= dx <= 32767 and -32768 <= dy <= 32767) for dx, dy in steps):
+                raise BuildError(f"road {cls}: a segment is too long for 16-bit steps")
+            chunks.append(struct.pack("<Iii", len(points), *points[0]))
+            chunks.append(struct.pack(f"<{2 * len(steps)}h", *(v for step in steps for v in step)))
+    blob = b"".join(chunks)
+    (CITY_OUT_DIR / "roads.bin").write_bytes(blob)
+    km = {cls: sum(line.length for line in lines[cls]) / 1000 for cls in ROAD_CLASSES}
+    print("  roads: " + ", ".join(f"{cls} {km[cls]:.0f} km" for cls in ROAD_CLASSES) + f"; {len(blob) / 1e6:.2f} MB")
+
+
+def build_land(refresh: bool) -> None:
+    wide = bbox_clause(LAND_BBOX)
+    coast = overpass(f'[out:json][timeout:180];way["natural"="coastline"]{wide};out geom;', "coastline-wide", refresh)
+    water = overpass(f'[out:json][timeout:240];way["natural"="water"]{wide};out geom;', "water-wide", refresh)
+
+    s, w, n, e = LAND_BBOX
     sw, ne = to_local(s, w), to_local(n, e)
     frame = box(sw.x, sw.y, ne.x, ne.y)
 
@@ -988,6 +1265,10 @@ def main() -> None:
 
     print("land")
     build_land(args.refresh)
+
+    print("land cover and roads")
+    build_landcover(args.refresh)
+    build_roads(built, args.refresh)
 
 
 if __name__ == "__main__":

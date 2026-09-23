@@ -52,6 +52,64 @@ export function ribbonGeometry(points: Point2[], width: number, y: number): THRE
   return geometry;
 }
 
+/**
+ * Untextured flat ribbons of `width` along every polyline, written straight
+ * into one pre-sized buffer - for thousands of kilometres of road, where
+ * building a geometry per road and merging them stalls the main thread.
+ * Positions and indices only: the unlit ground material needs nothing else.
+ */
+export function flatRibbonsGeometry(lines: Point2[][], width: number, y: number): THREE.BufferGeometry {
+  let vertexCount = 0;
+  let indexCount = 0;
+  for (const line of lines) {
+    if (line.length < 2) continue;
+    vertexCount += line.length * 2;
+    indexCount += (line.length - 1) * 6;
+  }
+  const positions = new Float32Array(vertexCount * 3);
+  const indices = new Uint32Array(indexCount);
+  const half = width / 2;
+  let v = 0;
+  let ix = 0;
+  for (const line of lines) {
+    if (line.length < 2) continue;
+    const first = v;
+    for (let i = 0; i < line.length; i++) {
+      const p = line[i]!;
+      const prev = line[Math.max(i - 1, 0)]!;
+      const next = line[Math.min(i + 1, line.length - 1)]!;
+      const tx = next.x - prev.x;
+      const tz = next.z - prev.z;
+      const len = Math.hypot(tx, tz) || 1;
+      const nx = (-tz / len) * half;
+      const nz = (tx / len) * half;
+      const k = v * 3;
+      positions[k] = p.x + nx;
+      positions[k + 1] = y;
+      positions[k + 2] = p.z + nz;
+      positions[k + 3] = p.x - nx;
+      positions[k + 4] = y;
+      positions[k + 5] = p.z - nz;
+      v += 2;
+    }
+    for (let i = 0; i < line.length - 1; i++) {
+      const a = first + i * 2;
+      indices[ix] = a;
+      indices[ix + 1] = a + 2;
+      indices[ix + 2] = a + 1;
+      indices[ix + 3] = a + 1;
+      indices[ix + 4] = a + 2;
+      indices[ix + 5] = a + 3;
+      ix += 6;
+    }
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  geometry.setIndex(new THREE.BufferAttribute(indices, 1));
+  geometry.computeBoundingSphere();
+  return geometry;
+}
+
 /** Flat-topped prisms from counter-clockwise (east, north) footprints,
  * already in scene space (x = east, z = -north): top face plus walls. */
 export function extrudedFootprintsGeometry(rings: Point2[][], height: number): THREE.BufferGeometry {

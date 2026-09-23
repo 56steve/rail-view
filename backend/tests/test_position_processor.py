@@ -55,7 +55,7 @@ def test_a_train_is_matched_against_its_own_line() -> None:
     # A Western-line position fed for a Central-line train is kilometres
     # from Central tracks near Andheri, so it must be rejected rather than
     # snapped onto the wrong line.
-    wr = get_route("WR-BVI")
+    wr = get_route("WR-VR")
     _, _, _, processor = make_processor("CR-KSRA")
     lat, lon = wr.position_at_chainage(wr.length_m * 0.5)
     assert processor.process_batch([RawFix("T-1", lat, lon, time.time())]) == []

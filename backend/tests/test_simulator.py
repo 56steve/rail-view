@@ -33,7 +33,7 @@ def test_every_route_gets_its_trains_numbered_per_line() -> None:
 def test_central_trains_run_both_branches() -> None:
     source = make_source(trains_per_route=3)
     route_codes = {source.get_active_run(f"CR-{i + 1:02d}").plan.route_code for i in range(6)}
-    assert route_codes == {"CR-KSRA", "CR-KJT"}
+    assert route_codes == {"CR-KSRA", "CR-KP"}
 
 
 def test_directions_alternate_within_a_route() -> None:

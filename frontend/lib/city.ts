@@ -33,12 +33,12 @@ export interface BuildingColors {
 
 const TALL_BUILDING_M = 60;
 
-export function buildTileGeometry(
-  buffer: ArrayBuffer,
-  tile: CityTile,
-  quantum: number,
-  colors: BuildingColors,
-): THREE.BufferGeometry {
+// Per-vertex "shade": 0-1 is how far a wall vertex sits between the base
+// and top colours; ROOF_SHADE marks roof vertices. Colours are applied
+// from it by paintBuildings, so a theme change repaints tiles in place.
+const ROOF_SHADE = -1;
+
+export function buildTileGeometry(buffer: ArrayBuffer, tile: CityTile, quantum: number): THREE.BufferGeometry {
   const view = new DataView(buffer);
   const magic = String.fromCharCode(view.getUint8(0), view.getUint8(1), view.getUint8(2), view.getUint8(3));
   if (magic !== "RVB1") throw new CityTileError(`${tile.file}: bad magic "${magic}"`);
@@ -57,16 +57,15 @@ export function buildTileGeometry(
 
   const positions = new Float32Array(vertexTotal * 3);
   const normals = new Float32Array(vertexTotal * 3);
-  const vertexColors = new Float32Array(vertexTotal * 3);
+  const shades = new Float32Array(vertexTotal);
   const indices = new Uint32Array(indexTotal);
   const origin = latLonToScene(tile.origin.lat, tile.origin.lon);
-  const topColor = new THREE.Color();
   const ring: THREE.Vector2[] = [];
 
   let v = 0;
   let ix = 0;
   offset = 8;
-  const put = (x: number, y: number, z: number, nx: number, ny: number, nz: number, c: THREE.Color) => {
+  const put = (x: number, y: number, z: number, nx: number, ny: number, nz: number, shade: number) => {
     const k = v * 3;
     positions[k] = x;
     positions[k + 1] = y;
@@ -74,9 +73,7 @@ export function buildTileGeometry(
     normals[k] = nx;
     normals[k + 1] = ny;
     normals[k + 2] = nz;
-    vertexColors[k] = c.r;
-    vertexColors[k + 1] = c.g;
-    vertexColors[k + 2] = c.b;
+    shades[v] = shade;
     return v++;
   };
 
@@ -92,7 +89,7 @@ export function buildTileGeometry(
       offset += 4;
     }
 
-    topColor.copy(colors.base).lerp(colors.top, Math.min(height / TALL_BUILDING_M, 1) * 0.6 + 0.4);
+    const topShade = Math.min(height / TALL_BUILDING_M, 1) * 0.6 + 0.4;
 
     // Walls: one quad per edge, with an outward normal. For a ring that is
     // counter-clockwise in (east, north), (a, b, b') faces outward.
@@ -104,10 +101,10 @@ export function buildTileGeometry(
       const len = Math.hypot(dx, dz) || 1;
       const nx = -dz / len;
       const nz = dx / len;
-      const a0 = put(a.x, 0, a.y, nx, 0, nz, colors.base);
-      const b0 = put(c.x, 0, c.y, nx, 0, nz, colors.base);
-      const b1 = put(c.x, height, c.y, nx, 0, nz, topColor);
-      const a1 = put(a.x, height, a.y, nx, 0, nz, topColor);
+      const a0 = put(a.x, 0, a.y, nx, 0, nz, 0);
+      const b0 = put(c.x, 0, c.y, nx, 0, nz, 0);
+      const b1 = put(c.x, height, c.y, nx, 0, nz, topShade);
+      const a1 = put(a.x, height, a.y, nx, 0, nz, topShade);
       indices.set([a0, b0, b1, a0, b1, a1], ix);
       ix += 6;
     }
@@ -115,7 +112,7 @@ export function buildTileGeometry(
     // Roof: triangulate the footprint, flipping any triangle that would
     // face down.
     const first = v;
-    for (const p of ring) put(p.x, height, p.y, 0, 1, 0, colors.roof);
+    for (const p of ring) put(p.x, height, p.y, 0, 1, 0, ROOF_SHADE);
     for (const [i0, i1, i2] of THREE.ShapeUtils.triangulateShape(ring, [])) {
       const p0 = ring[i0!]!;
       const p1 = ring[i1!]!;
@@ -129,9 +126,29 @@ export function buildTileGeometry(
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
   geometry.setAttribute("normal", new THREE.BufferAttribute(normals, 3));
-  geometry.setAttribute("color", new THREE.BufferAttribute(vertexColors, 3));
+  geometry.setAttribute("shade", new THREE.BufferAttribute(shades, 1));
+  geometry.setAttribute("color", new THREE.BufferAttribute(new Float32Array(vertexTotal * 3), 3));
   // Degenerate footprints can triangulate to fewer faces than n-2.
   geometry.setIndex(new THREE.BufferAttribute(indices.subarray(0, ix), 1));
   geometry.computeBoundingSphere();
   return geometry;
+}
+
+/** Writes vertex colours for a tile from its per-vertex shade. */
+export function paintBuildings(geometry: THREE.BufferGeometry, colors: BuildingColors): void {
+  const shade = geometry.getAttribute("shade");
+  const color = geometry.getAttribute("color");
+  if (!(shade instanceof THREE.BufferAttribute) || !(color instanceof THREE.BufferAttribute)) {
+    throw new CityTileError("building geometry is missing its shade or colour attribute");
+  }
+  const out = color.array as Float32Array;
+  const scratch = new THREE.Color();
+  for (let i = 0; i < shade.count; i++) {
+    const t = shade.getX(i);
+    const c = t === ROOF_SHADE ? colors.roof : scratch.copy(colors.base).lerp(colors.top, t);
+    out[i * 3] = c.r;
+    out[i * 3 + 1] = c.g;
+    out[i * 3 + 2] = c.b;
+  }
+  color.needsUpdate = true;
 }

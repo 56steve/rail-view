@@ -5,6 +5,7 @@ import { useArrivalAlerts } from "@/hooks/useArrivalAlerts";
 import { useDesktopInsets } from "@/hooks/useLayout";
 import { useLiveTrains } from "@/hooks/useLiveTrains";
 import { useNetworkData } from "@/hooks/useNetworkData";
+import { useSceneLighting } from "@/hooks/useSceneLighting";
 import { currentScreen, focusedTrainId, useRailView, type Screen } from "@/lib/store";
 import { ExploreScreen } from "./screens/ExploreScreen";
 import { FollowScreen } from "./screens/FollowScreen";
@@ -27,6 +28,7 @@ export function RailViewApp() {
   useLiveTrains();
   useArrivalAlerts();
   useDesktopInsets();
+  useSceneLighting();
   const { failed } = useNetworkData();
   const screen = useRailView(currentScreen);
   const followedTrain = useRailView(focusedTrainId);

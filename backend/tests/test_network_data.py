@@ -3,17 +3,19 @@
 import pytest
 
 from app.data.mumbai_network import load_lines, load_network, load_routes
+from app.services.geometry import haversine_m
 from app.services.track_matching import get_all_routes, get_route
 
 # Published route lengths, rounded; the OSM-derived track should land
 # within a few percent of each.
-EXPECTED_LENGTH_KM = {
-    "WR-BVI": 34.0,
-    "CR-KSRA": 120.5,
-    "CR-KJT": 100.0,
-    "HR-VSH": 29.0,
-    "THR-VSH": 18.5,
+PUBLISHED_LENGTH_KM = {
+    "WR-VR": 60.0,  # Churchgate - Virar
+    "CR-KSRA": 120.5,  # CSMT - Kasara
+    "CR-KP": 114.3,  # CSMT - Khopoli via Karjat
+    "HR-PNVL": 49.0,  # CSMT - Panvel
+    "THR-VSH": 18.5,  # Thane - Vashi
 }
+ALL_ROUTES = {"WR-VR", "CR-KSRA", "CR-KP", "HR-PNVL", "HR-GMN", "HR-PLGN", "THR-VSH", "THR-PNVL"}
 
 
 def test_all_four_lines_are_present() -> None:
@@ -22,14 +24,25 @@ def test_all_four_lines_are_present() -> None:
 
 def test_every_route_belongs_to_a_known_line() -> None:
     routes = load_routes()
-    assert set(routes) == set(EXPECTED_LENGTH_KM)
+    assert set(routes) == ALL_ROUTES
     assert {route.line.code for route in routes.values()} == set(load_lines())
 
 
-@pytest.mark.parametrize(("code", "expected_km"), EXPECTED_LENGTH_KM.items())
+@pytest.mark.parametrize(("code", "expected_km"), PUBLISHED_LENGTH_KM.items())
 def test_track_length_matches_the_real_route(code: str, expected_km: float) -> None:
     length_km = get_route(code).length_m / 1000
     assert abs(length_km - expected_km) / expected_km < 0.06
+
+
+@pytest.mark.parametrize("code", sorted(ALL_ROUTES))
+def test_track_follows_its_stations_without_detours(code: str) -> None:
+    # Rail curves, but never wanders: the track between consecutive
+    # stations stays close to the straight line between them.
+    route = get_route(code)
+    for a, b in zip(route.stations, route.stations[1:], strict=False):
+        straight = haversine_m(a.station.lat, a.station.lon, b.station.lat, b.station.lon)
+        along = b.chainage_m - a.chainage_m
+        assert along < straight * 1.6 + 300, (code, a.station.name, b.station.name)
 
 
 def test_stations_lie_on_their_track_in_order() -> None:
@@ -41,16 +54,16 @@ def test_stations_lie_on_their_track_in_order() -> None:
 
 
 def test_central_branches_share_the_trunk_up_to_kalyan() -> None:
-    kasara, karjat = get_route("CR-KSRA"), get_route("CR-KJT")
+    kasara, khopoli = get_route("CR-KSRA"), get_route("CR-KP")
     trunk = [sc.station.code for sc in kasara.stations]
     trunk = trunk[: trunk.index("KYN") + 1]
-    assert [sc.station.code for sc in karjat.stations][: len(trunk)] == trunk
+    assert [sc.station.code for sc in khopoli.stations][: len(trunk)] == trunk
     kalyan_a = next(sc for sc in kasara.stations if sc.station.code == "KYN")
-    kalyan_b = next(sc for sc in karjat.stations if sc.station.code == "KYN")
+    kalyan_b = next(sc for sc in khopoli.stations if sc.station.code == "KYN")
     # Same trunk geometry, so Kalyan sits at the same chainage on both.
     assert kalyan_a.chainage_m == pytest.approx(kalyan_b.chainage_m, abs=50)
     assert kasara.stations[-1].station.name == "Kasara"
-    assert karjat.stations[-1].station.name == "Karjat"
+    assert khopoli.stations[-1].station.name == "Khopoli"
 
 
 def test_trains_keep_left_on_their_own_track() -> None:
@@ -89,10 +102,11 @@ def test_interchanges_are_shared_by_name() -> None:
 
 def test_fast_service_only_where_defined() -> None:
     routes = load_routes()
-    assert routes["WR-BVI"].has_fast_service
+    assert routes["WR-VR"].has_fast_service
     assert routes["CR-KSRA"].has_fast_service
-    assert routes["CR-KJT"].has_fast_service
-    assert not routes["HR-VSH"].has_fast_service
+    assert routes["CR-KP"].has_fast_service
+    for code in ("HR-PNVL", "HR-GMN", "HR-PLGN", "THR-PNVL"):
+        assert not routes[code].has_fast_service
     assert not routes["THR-VSH"].has_fast_service
 
 

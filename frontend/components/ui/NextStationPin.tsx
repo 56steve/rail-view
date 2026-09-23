@@ -44,7 +44,7 @@ export function NextStationPin({ trainId }: { trainId: string }) {
     <div className="pointer-events-none absolute inset-0 overflow-hidden">
       <div ref={anchor} className="absolute left-0 top-0 will-change-transform" style={{ visibility: "hidden" }}>
         <span className="absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-primary" />
-        <span className="absolute bottom-1 h-10 w-px -translate-x-1/2 bg-gradient-to-t from-white/80 to-white/10" />
+        <span className="absolute bottom-1 h-10 w-px -translate-x-1/2 bg-gradient-to-t from-white/80 to-white/10 day:from-ink-900/80 day:to-ink-900/10" />
         <div className="glass absolute bottom-11 flex -translate-x-1/2 items-center gap-2 whitespace-nowrap rounded-full py-1.5 pl-2 pr-3.5 shadow-float">
           <span className="flex h-5 w-5 items-center justify-center rounded-full border-2 border-white">
             <span className="h-1.5 w-1.5 rounded-full bg-white" />

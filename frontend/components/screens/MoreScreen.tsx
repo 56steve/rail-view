@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { CityManifest } from "@/lib/city";
-import { useRailView } from "@/lib/store";
+import { useRailView, type Appearance } from "@/lib/store";
 import { Logo } from "../ui/Logo";
 import { PanelScreen } from "../ui/PanelScreen";
 import { Card, SectionTitle } from "../ui/primitives";
@@ -10,6 +10,7 @@ import { Card, SectionTitle } from "../ui/primitives";
 export function MoreScreen() {
   const showBuildings = useRailView((s) => s.showBuildings);
   const showLabels = useRailView((s) => s.showLabels);
+  const appearance = useRailView((s) => s.appearance);
   const attribution = useRailView((s) => s.network?.attribution);
   const [buildingStats, setBuildingStats] = useState<CityManifest["stats"] | null>(null);
 
@@ -34,6 +35,7 @@ export function MoreScreen() {
       <section className="mt-6 flex flex-col gap-2.5">
         <SectionTitle>Map</SectionTitle>
         <Card className="divide-y divide-white/7">
+          <AppearancePicker value={appearance} onChange={(v) => useRailView.getState().setAppearance(v)} />
           <Toggle label="3D buildings" checked={showBuildings} onChange={(v) => useRailView.getState().setShowBuildings(v)} />
           <Toggle label="Station names" checked={showLabels} onChange={(v) => useRailView.getState().setShowLabels(v)} />
         </Card>
@@ -52,7 +54,10 @@ export function MoreScreen() {
       <section className="mt-6 flex flex-col gap-2.5">
         <SectionTitle>Data</SectionTitle>
         <Card className="px-5 py-4 text-[13.5px] leading-relaxed text-fg-muted">
-          <p>Stations, track geometry, buildings and coastline: {attribution ?? "© OpenStreetMap contributors (ODbL)"}.</p>
+          <p>
+            Stations, tracks, platforms, buildings, roads, land cover and coastline:{" "}
+            {attribution ?? "© OpenStreetMap contributors (ODbL)"}.
+          </p>
           {buildingStats && (
             <p className="mt-2">
               Building heights come from OpenStreetMap where tagged ({buildingStats.height_tagged.toLocaleString()} of{" "}
@@ -62,6 +67,39 @@ export function MoreScreen() {
         </Card>
       </section>
     </PanelScreen>
+  );
+}
+
+const APPEARANCE_OPTIONS: { value: Appearance; label: string }[] = [
+  { value: "auto", label: "Auto" },
+  { value: "day", label: "Day" },
+  { value: "night", label: "Night" },
+];
+
+function AppearancePicker({ value, onChange }: { value: Appearance; onChange: (value: Appearance) => void }) {
+  return (
+    <div className="flex items-center justify-between gap-4 px-5 py-3">
+      <span className="flex flex-col">
+        <span className="text-[14.5px] text-fg">Appearance</span>
+        {value === "auto" && <span className="text-[12px] text-fg-subtle">Follows sunrise and sunset in Mumbai</span>}
+      </span>
+      <div role="radiogroup" aria-label="Map appearance" className="flex shrink-0 rounded-full bg-ink-700 p-0.5">
+        {APPEARANCE_OPTIONS.map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            role="radio"
+            aria-checked={value === option.value}
+            onClick={() => onChange(option.value)}
+            className={`rounded-full px-3 py-1.5 text-[12.5px] font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 ${
+              value === option.value ? "bg-primary text-white" : "text-fg-muted hover:text-fg"
+            }`}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
 

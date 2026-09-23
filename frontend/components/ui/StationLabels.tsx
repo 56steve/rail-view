@@ -90,8 +90,8 @@ function StationLabel({
         }`}
       />
       <span
-        className={`absolute left-2.5 -translate-y-1/2 whitespace-nowrap font-medium text-white [text-shadow:0_1px_3px_rgb(0_0_0/0.9),0_0_12px_rgb(0_0_0/0.6)] ${
-          focused ? "text-[15px]" : major ? "text-[13px]" : "text-[11.5px] text-white/85"
+        className={`absolute left-2.5 -translate-y-1/2 whitespace-nowrap font-medium text-white [text-shadow:0_1px_3px_rgb(0_0_0/0.9),0_0_12px_rgb(0_0_0/0.6)] day:text-ink-900 day:[text-shadow:0_0_2px_rgb(255_255_255),0_0_6px_rgb(255_255_255/0.9),0_0_12px_rgb(255_255_255/0.6)] ${
+          focused ? "text-[15px]" : major ? "text-[13px]" : "text-[11.5px] text-white/85 day:text-ink-800"
         }`}
       >
         {station.name}

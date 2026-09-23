@@ -28,6 +28,11 @@
   --shadow-float: 0 12px 32px -12px rgb(0 0 0 / 0.65), 0 2px 6px -2px rgb(0 0 0 / 0.5);
 }
 
+/* Map overlays (station names, pins) follow the 3D scene's day/night mode,
+ * which useSceneLighting mirrors onto <html data-scene>. The UI panels
+ * stay dark glass in both modes. */
+@custom-variant day (&:where([data-scene="day"], [data-scene="day"] *));
+
 @layer base {
   html,
   body {

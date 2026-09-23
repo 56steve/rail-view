@@ -67,7 +67,7 @@ export function JourneyMiniMap({
       <svg viewBox={`${box.minX} ${box.minZ} ${box.w} ${box.h}`} className="block aspect-[2/1] w-full" role="img" aria-label={`Map from ${from.name} to ${to.name}`}>
         {spans.map((span) => (
           <polyline
-            key={span.routeId}
+            key={span.key}
             points={toPoints(span.points)}
             fill="none"
             stroke="#2C3444"

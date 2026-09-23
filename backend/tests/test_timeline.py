@@ -23,7 +23,7 @@ def test_upcoming_times_carry_the_current_delay(network) -> None:
 
 
 def test_stops_passed_before_tracking_began_have_no_observed_time(network) -> None:
-    network.place("WR-01", "WR-BVI", "SLOW", forward=True, at_fraction=0.6)
+    network.place("WR-01", "WR-VR", "SLOW", forward=True, at_fraction=0.6)
     timeline = build_timeline(network.processor.context("WR-01"))
     departed = [s for s in timeline if s.state == "departed"]
     assert departed
@@ -32,9 +32,9 @@ def test_stops_passed_before_tracking_began_have_no_observed_time(network) -> No
 
 
 def test_timeline_follows_travel_order_for_reverse_runs(network) -> None:
-    network.place("HR-01", "HR-VSH", "SLOW", forward=False, at_fraction=0.3)
+    network.place("HR-01", "HR-PNVL", "SLOW", forward=False, at_fraction=0.3)
     timeline = build_timeline(network.processor.context("HR-01"))
-    assert timeline[0].station.name == "Vashi"
+    assert timeline[0].station.name == "Panvel"
     assert timeline[-1].station.name == "CSMT"
     scheduled = [s.scheduled_epoch for s in timeline]
     assert scheduled == sorted(scheduled)

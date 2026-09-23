@@ -12,6 +12,17 @@ import type {
 
 export type TabName = "explore" | "trains" | "saved" | "more";
 
+/** What the user picked; "auto" follows the real sun over Mumbai. */
+export type Appearance = "auto" | "day" | "night";
+export type SceneMode = "day" | "night";
+
+export interface SceneLighting {
+  mode: SceneMode;
+  /** Unit vector from the ground towards the sun, in scene space. */
+  sunDirection: [number, number, number];
+  sunElevationDeg: number;
+}
+
 export type Screen =
   | { name: TabName }
   | { name: "follow"; trainId: string }
@@ -77,6 +88,8 @@ interface RailViewState {
   view2D: boolean;
   showBuildings: boolean;
   showLabels: boolean;
+  appearance: Appearance;
+  lighting: SceneLighting;
   savedTrainIds: string[];
   savedJourneys: SavedJourney[];
   alerts: ArrivalAlert[];
@@ -99,6 +112,8 @@ interface RailViewState {
   setView2D: (value: boolean) => void;
   setShowBuildings: (value: boolean) => void;
   setShowLabels: (value: boolean) => void;
+  setAppearance: (value: Appearance) => void;
+  setLighting: (lighting: SceneLighting) => void;
   toggleSavedTrain: (trainId: string) => void;
   toggleSavedJourney: (journey: SavedJourney) => void;
   addAlert: (alert: Omit<ArrivalAlert, "id" | "createdAtMs">) => void;
@@ -111,7 +126,13 @@ interface RailViewState {
   hydratePreferences: (prefs: Partial<Pick<RailViewState, PreferenceKey>>) => void;
 }
 
-export type PreferenceKey = "showBuildings" | "showLabels" | "savedTrainIds" | "savedJourneys" | "alerts";
+export type PreferenceKey =
+  | "showBuildings"
+  | "showLabels"
+  | "appearance"
+  | "savedTrainIds"
+  | "savedJourneys"
+  | "alerts";
 
 let idCounter = 0;
 function nextId(prefix: string): string {
@@ -134,6 +155,8 @@ export const useRailView = create<RailViewState>((set, get) => ({
   view2D: false,
   showBuildings: true,
   showLabels: true,
+  appearance: "auto",
+  lighting: { mode: "night", sunDirection: [0, 1, 0], sunElevationDeg: -90 },
   savedTrainIds: [],
   savedJourneys: [],
   alerts: [],
@@ -178,6 +201,8 @@ export const useRailView = create<RailViewState>((set, get) => ({
   setView2D: (view2D) => set({ view2D }),
   setShowBuildings: (showBuildings) => set({ showBuildings }),
   setShowLabels: (showLabels) => set({ showLabels }),
+  setAppearance: (appearance) => set({ appearance }),
+  setLighting: (lighting) => set({ lighting }),
 
   toggleSavedTrain: (trainId) =>
     set((state) => ({

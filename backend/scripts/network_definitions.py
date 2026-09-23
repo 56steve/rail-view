@@ -8,8 +8,9 @@ network are incomplete and inconsistently ordered.
 
 A line (Central, Western...) is what commuters and the UI talk about. A
 route is one end-to-end path trains actually run on: the Central line
-forks at Kalyan, so it has a Kasara route and a Karjat route that share
-track up to Kalyan. Short workings (e.g. CSMT-Thane) are runs over part
+forks at Kalyan, so it has a Kasara route and a Khopoli route (via
+Karjat) that share track up to Kalyan; the Harbour line forks at Wadala
+Road towards Panvel and Goregaon. Short workings (e.g. CSMT-Thane) are runs over part
 of a route, not routes of their own.
 
 `ref` values are the Indian Railways station codes as tagged on the OSM
@@ -20,7 +21,7 @@ individual fast workings vary, which per-train timetable data captures.
 Beyond Kalyan every Central local, fast or slow, calls at every station.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 
 @dataclass(frozen=True, slots=True)
@@ -31,6 +32,10 @@ class StationDef:
     osm_id: str | None = None
     override_latlon: tuple[float, float] | None = None
     override_reason: str | None = None
+    # Where a route reverses at the station, how close its track must pass:
+    # the train runs into the platform and back out rather than turning at
+    # the junction beyond it.
+    reversal_snap_m: float | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -53,7 +58,7 @@ WESTERN = LineDef(
     color_hex="#8B7CF6",
     routes=(
         RouteDef(
-            code="WR-BVI",
+            code="WR-VR",
             stations=(
                 StationDef("CCG", "Churchgate", fast_halt=True),
                 StationDef("MEL", "Marine Lines"),
@@ -79,6 +84,13 @@ WESTERN = LineDef(
                 StationDef("MDD", "Malad"),
                 StationDef("KILE", "Kandivali"),
                 StationDef("BVI", "Borivali", fast_halt=True),
+                StationDef("DIC", "Dahisar"),
+                StationDef("MIRA", "Mira Road"),
+                StationDef("BYR", "Bhayandar", fast_halt=True),
+                StationDef("NIG", "Naigaon"),
+                StationDef("BSR", "Vasai Road", fast_halt=True),
+                StationDef("NSP", "Nallasopara", fast_halt=True),
+                StationDef("VR", "Virar", fast_halt=True),
             ),
         ),
     ),
@@ -136,7 +148,7 @@ CENTRAL = LineDef(
             ),
         ),
         RouteDef(
-            code="CR-KJT",
+            code="CR-KP",
             stations=(
                 *_CENTRAL_TO_KALYAN,
                 StationDef("VLDI", "Vithalwadi", fast_halt=True),
@@ -148,9 +160,86 @@ CENTRAL = LineDef(
                 StationDef("NRL", "Neral", fast_halt=True),
                 StationDef("BVS", "Bhivpuri Road", fast_halt=True),
                 StationDef("KJT", "Karjat", fast_halt=True),
+                StationDef("PDI", "Palasdhari", fast_halt=True),
+                StationDef("KLY", "Kelavli", fast_halt=True),
+                StationDef("DLV", "Dolavli", fast_halt=True),
+                StationDef("LWJ", "Lowjee", fast_halt=True),
+                StationDef("KHPI", "Khopoli", fast_halt=True),
             ),
         ),
     ),
+)
+
+_HARBOUR_CSMT_TO_WADALA = (
+    StationDef("CSMT", "CSMT"),
+    StationDef("MSD", "Masjid"),
+    StationDef("SNRD", "Sandhurst Road"),
+    StationDef("DKRD", "Dockyard Road"),
+    StationDef("RRD", "Reay Road"),
+    StationDef("CTGN", "Cotton Green"),
+    StationDef("SVE", "Sewri"),
+)
+
+_WADALA_ROAD = StationDef(
+    "VDLR",
+    "Wadala Road",
+    override_latlon=(19.0162, 72.8589),
+    override_reason=(
+        "No station element in OSM, but its four platforms are mapped "
+        "('Vadala Road (Harbour Line)', ways 236381659-236381661); the "
+        "station is placed at their centre."
+    ),
+)
+
+# Wadala Road to Goregaon along the Harbour line's own tracks beside the
+# Western line; the Harbour platform at Jogeshwari is pinned.
+_HARBOUR_WADALA_TO_GOREGAON = (
+    StationDef("KCE", "King's Circle"),
+    StationDef("MM", "Mahim"),
+    StationDef("BA", "Bandra"),
+    StationDef("KHAR", "Khar Road"),
+    StationDef("STC", "Santacruz"),
+    StationDef("VLP", "Vile Parle"),
+    StationDef("ADH", "Andheri"),
+    StationDef("JOS", "Jogeshwari", osm_id="node/12189351698"),
+    StationDef("RMAR", "Ram Mandir"),
+    StationDef("GMN", "Goregaon"),
+)
+
+# Shared by the Harbour line and Trans-Harbour trains to Panvel.
+_JUINAGAR_TO_PANVEL = (
+    StationDef("JNJ", "Juinagar"),
+    StationDef("NEU", "Nerul"),
+    StationDef("SWDV", "Seawoods Darave Karave"),
+    StationDef("BEPR", "Belapur CBD"),
+    StationDef("KHAG", "Kharghar"),
+    # Both tagged station=light_rail in OSM, which the ref lookup skips.
+    StationDef("MANR", "Mansarovar", osm_id="node/1435294693"),
+    StationDef("KNDS", "Khandeshwar", osm_id="node/1645802025"),
+    StationDef(
+        "PNVL",
+        "Panvel",
+        override_latlon=(18.9901, 73.1214),
+        override_reason=(
+            "Harbour and Trans-Harbour trains terminate in bay platforms beside the main "
+            "station; both OSM Panvel elements (the long-distance station and the "
+            "suburban station area) sit 100 m or more off those tracks, so the station "
+            "is placed at the bay platforms' buffer stops."
+        ),
+    ),
+)
+
+_HARBOUR_WADALA_TO_PANVEL = (
+    StationDef("GTBN", "GTB Nagar"),
+    StationDef("CHF", "Chunabhatti"),
+    StationDef("CLA", "Kurla"),
+    StationDef("TKNG", "Tilak Nagar"),
+    StationDef("CMBR", "Chembur"),
+    StationDef("GV", "Govandi"),
+    StationDef("MNKD", "Mankhurd"),
+    StationDef("VSH", "Vashi"),
+    StationDef("SNCR", "Sanpada"),
+    *_JUINAGAR_TO_PANVEL,
 )
 
 HARBOUR = LineDef(
@@ -159,36 +248,34 @@ HARBOUR = LineDef(
     color_hex="#2BC4A4",
     routes=(
         RouteDef(
-            code="HR-VSH",
+            code="HR-PNVL",
+            stations=(*_HARBOUR_CSMT_TO_WADALA, _WADALA_ROAD, *_HARBOUR_WADALA_TO_PANVEL),
+        ),
+        RouteDef(
+            code="HR-GMN",
+            stations=(*_HARBOUR_CSMT_TO_WADALA, _WADALA_ROAD, *_HARBOUR_WADALA_TO_GOREGAON),
+        ),
+        # Panvel - Goregaon services reverse at Wadala Road: both branches
+        # leave it northwards, with no curve joining them.
+        RouteDef(
+            code="HR-PLGN",
             stations=(
-                StationDef("CSMT", "CSMT"),
-                StationDef("MSD", "Masjid"),
-                StationDef("SNRD", "Sandhurst Road"),
-                StationDef("DKRD", "Dockyard Road"),
-                StationDef("RRD", "Reay Road"),
-                StationDef("CTGN", "Cotton Green"),
-                StationDef("SVE", "Sewri"),
-                StationDef(
-                    "VDLR",
-                    "Wadala Road",
-                    override_latlon=(19.0170, 72.8589),
-                    override_reason=(
-                        "Not tagged as a railway station in OSM; positioned beside "
-                        "the adjacent Wadala Bridge monorail stop and snapped to the "
-                        "Harbour track."
-                    ),
-                ),
-                StationDef("GTBN", "GTB Nagar"),
-                StationDef("CHF", "Chunabhatti"),
-                StationDef("CLA", "Kurla"),
-                StationDef("TKNG", "Tilak Nagar"),
-                StationDef("CMBR", "Chembur"),
-                StationDef("GV", "Govandi"),
-                StationDef("MNKD", "Mankhurd"),
-                StationDef("VSH", "Vashi"),
+                *reversed(_HARBOUR_WADALA_TO_PANVEL),
+                replace(_WADALA_ROAD, reversal_snap_m=40.0),
+                *_HARBOUR_WADALA_TO_GOREGAON,
             ),
         ),
     ),
+)
+
+_TRANS_HARBOUR_TO_TURBHE = (
+    StationDef("TNA", "Thane"),
+    StationDef("DIGH", "Digha Gaon"),
+    StationDef("AIRL", "Airoli"),
+    StationDef("RABE", "Rabale"),
+    StationDef("GNSL", "Ghansoli"),
+    StationDef("KPHN", "Kopar Khairane"),
+    StationDef("TUH", "Turbhe"),
 )
 
 TRANS_HARBOUR = LineDef(
@@ -198,16 +285,11 @@ TRANS_HARBOUR = LineDef(
     routes=(
         RouteDef(
             code="THR-VSH",
-            stations=(
-                StationDef("TNA", "Thane"),
-                StationDef("AIRL", "Airoli"),
-                StationDef("RABE", "Rabale"),
-                StationDef("GNSL", "Ghansoli"),
-                StationDef("KPHN", "Kopar Khairane"),
-                StationDef("TUH", "Turbhe"),
-                StationDef("SNCR", "Sanpada"),
-                StationDef("VSH", "Vashi"),
-            ),
+            stations=(*_TRANS_HARBOUR_TO_TURBHE, StationDef("SNCR", "Sanpada"), StationDef("VSH", "Vashi")),
+        ),
+        RouteDef(
+            code="THR-PNVL",
+            stations=(*_TRANS_HARBOUR_TO_TURBHE, *_JUINAGAR_TO_PANVEL),
         ),
     ),
 )
