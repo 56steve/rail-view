@@ -8,7 +8,15 @@ import { laneSample } from "@/lib/lanes";
 import { trainPose } from "@/lib/motion";
 import { navigate } from "@/lib/navigation";
 import { focusedTrainId, useRailView } from "@/lib/store";
-import { COACH_PITCH, coachGeometry, coachMaterial } from "./coachGeometry";
+import {
+  COACH_PITCH,
+  coachGeometry,
+  coachGlyphGeometry,
+  coachKindAt,
+  coachMaterial,
+  type CoachKind,
+  type Livery,
+} from "./coachGeometry";
 
 // Closer than this, a train is drawn as its true-scale rake following the
 // track's curves; farther, as a compact glyph sized to stay legible at
@@ -40,15 +48,26 @@ export function Trains() {
 function TrainView({ trainId }: { trainId: string }) {
   const lineCode = useRailView((s) => s.trainPairs[trainId]?.to.line_code ?? null);
   const coachCount = useRailView((s) => s.trainPairs[trainId]?.to.coach_count ?? 12);
+  const ac = useRailView((s) => s.trainPairs[trainId]?.to.ac ?? false);
   const color = useRailView((s) => (lineCode ? s.lines[lineCode]?.color_hex : undefined)) ?? "#8B93A3";
   const focused = useRailView((s) => focusedTrainId(s) === trainId);
   const dimmed = useRailView((s) => s.lineFilter !== null && s.lineFilter !== lineCode);
 
-  const cab = useMemo(() => coachGeometry("cab", color), [color]);
-  const trailer = useMemo(() => coachGeometry("trailer", color), [color]);
+  const livery = useMemo<Livery>(() => ({ band: color, ac }), [color, ac]);
+  const cab = useMemo(() => coachGeometry("cab", livery), [livery]);
+  const motor = useMemo(() => coachGeometry("motor", livery), [livery]);
+  const trailer = useMemo(() => coachGeometry("trailer", livery), [livery]);
+  const glyphGeometry = useMemo(() => coachGlyphGeometry(livery), [livery]);
   const material = coachMaterial();
+  // How many coaches of each kind this rake has (12 or 15 cars).
+  const kindCounts = useMemo(() => {
+    const counts: Record<CoachKind, number> = { cab: 0, motor: 0, trailer: 0 };
+    for (let k = 0; k < coachCount; k++) counts[coachKindAt(k, coachCount)] += 1;
+    return counts;
+  }, [coachCount]);
 
   const rakeCabs = useRef<THREE.InstancedMesh>(null);
+  const rakeMotors = useRef<THREE.InstancedMesh>(null);
   const rakeTrailers = useRef<THREE.InstancedMesh>(null);
   const glyph = useRef<THREE.Group>(null);
   const glyphCabs = useRef<THREE.InstancedMesh>(null);
@@ -77,9 +96,12 @@ function TrainView({ trainId }: { trainId: string }) {
     const track = pair ? state.tracks[pair.to.route_code] : undefined;
     const lanes = pair ? state.lanes[pair.to.route_code] : undefined;
     const cabs = rakeCabs.current;
+    const motors = rakeMotors.current;
     const trailers = rakeTrailers.current;
     const group = glyph.current;
-    if (!pair || !track || !lanes || !cabs || !trailers || !group || !glyphCabs.current || !glow.current) return;
+    if (!pair || !track || !lanes || !cabs || !motors || !trailers || !group || !glyphCabs.current || !glow.current) {
+      return;
+    }
 
     const pose = trainPose(pair, performance.now());
     const centre = laneSample(track, lanes, pose.forward, pose.chainage);
@@ -88,37 +110,32 @@ function TrainView({ trainId }: { trainId: string }) {
     const tint = pose.status === "stale" ? STALE_TINT : LIVE_TINT;
     const turn = pose.forward ? 0 : Math.PI;
 
-    cabs.visible = near;
-    trailers.visible = near;
+    const rake = { cab: cabs, motor: motors, trailer: trailers };
+    for (const mesh of Object.values(rake)) mesh.visible = near;
     group.visible = !near;
 
     if (near) {
       const dir = pose.forward ? 1 : -1;
       const frontChainage = pose.chainage + dir * ((coachCount - 1) / 2) * COACH_PITCH;
       const o = scratch.object;
-      let trailerIndex = 0;
+      const next: Record<CoachKind, number> = { cab: 0, motor: 0, trailer: 0 };
       for (let k = 0; k < coachCount; k++) {
         const s = laneSample(track, lanes, pose.forward, frontChainage - dir * k * COACH_PITCH);
+        // The rear cab faces backwards, so its driving end is at the back.
         const isRearCab = k === coachCount - 1;
         o.position.set(s.x, 0, s.z);
         o.rotation.set(0, s.yaw + turn + (isRearCab ? Math.PI : 0), 0);
         o.updateMatrix();
-        if (k === 0 || isRearCab) {
-          const index = k === 0 ? 0 : 1;
-          cabs.setMatrixAt(index, o.matrix);
-          cabs.setColorAt(index, tint);
-        } else {
-          trailers.setMatrixAt(trailerIndex, o.matrix);
-          trailers.setColorAt(trailerIndex, tint);
-          trailerIndex += 1;
-        }
+        const kind = coachKindAt(k, coachCount);
+        rake[kind].setMatrixAt(next[kind], o.matrix);
+        rake[kind].setColorAt(next[kind], tint);
+        next[kind] += 1;
       }
-      cabs.instanceMatrix.needsUpdate = true;
-      trailers.instanceMatrix.needsUpdate = true;
-      if (cabs.instanceColor) cabs.instanceColor.needsUpdate = true;
-      if (trailers.instanceColor) trailers.instanceColor.needsUpdate = true;
-      cabs.computeBoundingSphere();
-      trailers.computeBoundingSphere();
+      for (const mesh of Object.values(rake)) {
+        mesh.instanceMatrix.needsUpdate = true;
+        if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+        mesh.computeBoundingSphere();
+      }
     } else {
       const scale = Math.max(1, distance * GLYPH_SCALE_PER_M);
       group.position.set(centre.x, 0, centre.z);
@@ -160,15 +177,25 @@ function TrainView({ trainId }: { trainId: string }) {
         onPointerOut={onOut}
       />
       <instancedMesh
+        ref={rakeMotors}
+        args={[motor, material, Math.max(kindCounts.motor, 1)]}
+        count={kindCounts.motor}
+        frustumCulled={false}
+        onClick={onSelect}
+        onPointerOver={onOver}
+        onPointerOut={onOut}
+      />
+      <instancedMesh
         ref={rakeTrailers}
-        args={[trailer, material, Math.max(coachCount - 2, 1)]}
+        args={[trailer, material, Math.max(kindCounts.trailer, 1)]}
+        count={kindCounts.trailer}
         frustumCulled={false}
         onClick={onSelect}
         onPointerOver={onOver}
         onPointerOut={onOut}
       />
       <group ref={glyph}>
-        <instancedMesh ref={glyphCabs} args={[cab, material, 2]} frustumCulled={false} />
+        <instancedMesh ref={glyphCabs} args={[glyphGeometry, material, 2]} frustumCulled={false} />
         <mesh ref={glow} rotation-x={-Math.PI / 2} position-y={0.5}>
           <circleGeometry args={[17, 32]} />
           <meshBasicMaterial

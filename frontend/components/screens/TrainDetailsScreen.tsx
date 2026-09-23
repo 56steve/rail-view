@@ -53,7 +53,7 @@ export function TrainDetailsScreen({ trainId }: { trainId: string }) {
   return (
     <div className="pointer-events-auto flex h-full flex-col overflow-y-auto bg-ink-950 md:rounded-3xl md:border md:hairline md:shadow-float">
       <div className="relative shrink-0">
-        {train ? <TrainPreview lineColor={color} /> : <div className="h-52 bg-ink-900" />}
+        {train ? <TrainPreview lineColor={color} ac={train.ac} /> : <div className="h-52 bg-ink-900" />}
         <div className="absolute inset-x-0 top-0 flex justify-between px-4 pt-safe md:pt-4">
           <button type="button" aria-label="Back" onClick={navigateBack} className="glass flex h-10 w-10 items-center justify-center rounded-full">
             <ArrowLeft className="h-5 w-5" />
