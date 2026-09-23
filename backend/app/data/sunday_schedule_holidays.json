@@ -1,0 +1,34 @@
+{
+  "description": "Days on which Mumbai suburban trains run to the Sunday timetable, besides Sundays. Fixed-date holidays apply every year; holidays that move with the calendar are listed per year, dated from the Government of Maharashtra's public holiday list for that year.",
+  "sources": [
+    {
+      "what": "Central Railway: list of holidays on which trains will run as per Sunday schedule",
+      "url": "https://cr.indianrailways.gov.in/cris//uploads/files/1763721416458-list%20of%20holidays%20for%20website.pdf",
+      "file": "backend/data/timetables/cr-sunday-schedule-holidays.pdf"
+    },
+    {
+      "what": "Government of Maharashtra public holidays 2026, as published by MMRDA",
+      "url": "https://mmrda.maharashtra.gov.in/en/public-holidays"
+    }
+  ],
+  "fixed": [
+    { "name": "Republic Day", "month": 1, "day": 26 },
+    { "name": "Dr. Ambedkar Jayanti", "month": 4, "day": 14 },
+    { "name": "Maharashtra Day", "month": 5, "day": 1 },
+    { "name": "Independence Day", "month": 8, "day": 15 },
+    { "name": "Gandhi Jayanti", "month": 10, "day": 2 },
+    { "name": "Christmas", "month": 12, "day": 25 }
+  ],
+  "movable": {
+    "2026": [
+      { "name": "Holi (second day)", "date": "2026-03-03" },
+      { "name": "Gudi Padwa", "date": "2026-03-19" },
+      { "name": "Ramzan-Id", "date": "2026-03-21" },
+      { "name": "Good Friday", "date": "2026-04-03" },
+      { "name": "Ganesh Chaturthi", "date": "2026-09-14" },
+      { "name": "Dasara", "date": "2026-10-20" },
+      { "name": "Diwali (Lakshmi Pujan)", "date": "2026-11-08" },
+      { "name": "Diwali (Bali Pratipada)", "date": "2026-11-10" }
+    ]
+  }
+}

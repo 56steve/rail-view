@@ -1,4 +1,4 @@
-import type { JourneyPlan, JourneySort, NetworkOut, StationIndexEntry, TrainDetail } from "./types";
+import type { JourneyPlan, JourneySort, NetworkOut, ServiceDay, StationIndexEntry, TrainDetail } from "./types";
 
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 export const WS_URL = process.env.NEXT_PUBLIC_WS_URL ?? "ws://localhost:8000/ws/live";
@@ -25,6 +25,10 @@ export function fetchNetwork(signal?: AbortSignal): Promise<NetworkOut> {
 
 export function fetchStations(signal?: AbortSignal): Promise<StationIndexEntry[]> {
   return getJson<StationIndexEntry[]>("/api/stations", signal);
+}
+
+export function fetchServiceDay(signal?: AbortSignal): Promise<ServiceDay> {
+  return getJson<ServiceDay>("/api/service-day", signal);
 }
 
 export function fetchTrainDetail(trainId: string, signal?: AbortSignal): Promise<TrainDetail> {

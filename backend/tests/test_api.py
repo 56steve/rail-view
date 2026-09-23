@@ -72,3 +72,11 @@ def test_websocket_sends_an_initial_snapshot(client) -> None:
         message = ws.receive_json()
     assert message["type"] == "snapshot"
     assert len(message["trains"]) > 0
+
+
+def test_service_day_says_which_timetable_runs_today(client) -> None:
+    body = client.get("/api/service-day").json()
+    assert set(body) == {"date", "sunday_schedule", "holiday_name"}
+    assert isinstance(body["sunday_schedule"], bool)
+    if body["holiday_name"] is not None:
+        assert body["sunday_schedule"]

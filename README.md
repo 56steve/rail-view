@@ -80,6 +80,12 @@ Next.js client       interpolates along the track between snapshots and
 - `app/services/timetable.py`: the imported official timetable, each
   train fitted onto the route and direction it runs, with the days it
   runs (the Sunday schedule, not-on-Sundays and weekday-only trains).
+- `app/services/holidays.py`: the holidays that run the Sunday timetable,
+  from Central Railway's list (`app/data/sunday_schedule_holidays.json`).
+  Six are fixed dates; the rest move with the calendar and are dated each
+  year from the Government of Maharashtra's holiday list. Add a new
+  year's dates when Maharashtra publishes them each December; until then
+  only the fixed dates apply and the backend logs a warning.
 - `app/services/simulator/`: the simulated feed. Every train due now runs
   on the shared speed profile at per-leg speeds solved from the published
   times. Dwell times vary and late trains claw time back within line

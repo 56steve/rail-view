@@ -129,6 +129,14 @@ export interface JourneyPlan {
   interchange_hint: string | null;
 }
 
+/** Which timetable the network is running today, in Mumbai. */
+export interface ServiceDay {
+  date: string;
+  sunday_schedule: boolean;
+  /** Set when the Sunday schedule is for a holiday rather than a Sunday. */
+  holiday_name: string | null;
+}
+
 export interface SnapshotMessage {
   type: "snapshot";
   server_time_epoch: number;

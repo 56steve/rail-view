@@ -20,6 +20,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes_journeys import router as journeys_router
+from app.api.routes_service_day import router as service_day_router
 from app.api.routes_stations import router as stations_router
 from app.api.routes_trains import router as trains_router
 from app.api.ws import router as ws_router
@@ -105,6 +106,7 @@ def create_app() -> FastAPI:
     app.include_router(stations_router)
     app.include_router(trains_router)
     app.include_router(journeys_router)
+    app.include_router(service_day_router)
     app.include_router(ws_router)
 
     @app.get("/health")

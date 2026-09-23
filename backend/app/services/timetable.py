@@ -22,6 +22,7 @@ from typing import Literal
 from zoneinfo import ZoneInfo
 
 from app.data.mumbai_network import RouteSeed, load_routes
+from app.services.holidays import runs_sunday_schedule
 from app.services.station_index import station_id_for_name
 
 TIMETABLE_JSON = Path(__file__).resolve().parents[1] / "data" / "generated" / "timetable.json"
@@ -72,19 +73,16 @@ class TimetabledTrain:
         return self.stops[-1].arrival_min
 
     def runs_on(self, service_date: date) -> bool:
-        """Whether this train runs on `service_date`.
-
-        Public holidays run to the Sunday schedule; they aren't modelled
-        yet, so on a holiday this follows the ordinary weekday pattern.
-        """
-        weekday = service_date.weekday()  # Monday = 0 ... Sunday = 6
+        """Whether this train runs on `service_date`. Sundays and the
+        listed holidays (app.services.holidays) run the Sunday schedule."""
         if self.days == "all":
             return True
+        sunday_schedule = runs_sunday_schedule(service_date)
         if self.days == "not_sunday":
-            return weekday != 6
+            return not sunday_schedule
         if self.days == "weekdays":
-            return weekday < 5
-        return weekday == 6
+            return service_date.weekday() < 5 and not sunday_schedule
+        return sunday_schedule
 
     def ac_on(self, service_date: date) -> bool:
         return self.ac and not (self.non_ac_at_weekends and service_date.weekday() >= 5)
