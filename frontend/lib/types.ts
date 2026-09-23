@@ -56,8 +56,12 @@ export type TrainType = "FAST" | "SLOW";
 export type TrainStatus = "live" | "stale";
 
 export interface TrainPositionUpdate {
+  /** The train number in the official timetable. */
   train_id: string;
   train_type: TrainType;
+  /** Central Railway's service code, e.g. "N 5"; Western doesn't publish them. */
+  service_code: string | null;
+  ac: boolean;
   line_code: string;
   line_name: string;
   route_code: string;
@@ -101,6 +105,11 @@ export type JourneySort = "fastest" | "soonest";
 export interface JourneyOption {
   train_id: string;
   train_type: TrainType;
+  service_code: string | null;
+  ac: boolean;
+  /** Running now (times include its delay); otherwise it hasn't started. */
+  is_live: boolean;
+  board_scheduled_epoch: number;
   line_code: string;
   line_name: string;
   route_code: string;

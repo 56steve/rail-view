@@ -11,7 +11,7 @@ def build_timeline(context: TrainContext) -> list[StopTime]:
     for stop in context.run.plan.stops:
         code = stop.station.station.code
         observed = context.observed_arrivals.get(code)
-        scheduled = context.scheduled_epoch(stop)
+        scheduled = context.published_epoch(stop)
 
         state: StopState
         if stop is context.current_stop:
@@ -28,7 +28,7 @@ def build_timeline(context: TrainContext) -> list[StopTime]:
             # time is genuinely unknown, so fall back to the timetable.
             expected = observed if observed is not None else scheduled
         else:
-            expected = max(context.expected_epoch(stop), context.updated_at_epoch)
+            expected = max(scheduled + context.delay_s, context.updated_at_epoch)
 
         stops.append(
             StopTime(

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { trainTypeLabel } from "@/lib/format";
+import { trainIdentity, trainTypeLabel } from "@/lib/format";
 import { useRailView } from "@/lib/store";
 
 // A train that never reaches the alert station (e.g. it terminated and
@@ -44,9 +44,9 @@ export function useArrivalAlerts(): void {
 
           state.removeAlert(alert.id);
           const title = atStation
-            ? `${trainTypeLabel(train.train_type)} at ${alert.stationName}`
+            ? `${trainTypeLabel(train)} at ${alert.stationName}`
             : `Arriving at ${alert.stationName} in ${Math.max(1, Math.round((train.eta_seconds ?? 0) / 60))} min`;
-          const body = `${train.direction_label} · ${train.train_id}`;
+          const body = `${train.direction_label} · ${trainIdentity(train)}`;
           state.pushToast({ title, body, tone: "success" });
           notify(title, body);
         }

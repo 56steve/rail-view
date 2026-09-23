@@ -4,11 +4,11 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, ArrowUpDown, Box, ChevronRight, Clock, Info, Star } from "lucide-react";
 import { useNowSeconds } from "@/hooks/useNow";
 import { fetchJourney } from "@/lib/api";
-import { formatClock, formatDuration, formatMinutesAway, trainTypeLabel } from "@/lib/format";
+import { formatClock, formatDuration, formatMinutesAway, trainIdentity, trainTypeLabel } from "@/lib/format";
 import { directSegment } from "@/lib/journey";
 import { navigate, navigateBack } from "@/lib/navigation";
 import { useRailView } from "@/lib/store";
-import type { JourneyPlan, JourneySort, StationIndexEntry } from "@/lib/types";
+import type { JourneyOption, JourneyPlan, JourneySort, StationIndexEntry } from "@/lib/types";
 import { JourneyMiniMap } from "../ui/JourneyMiniMap";
 import { EmptyState, LineSwatch, PrimaryButton, SectionTitle } from "../ui/primitives";
 import { StationPicker } from "../ui/StationPicker";
@@ -58,6 +58,8 @@ export function JourneyScreen({ fromId, toId }: { fromId: string | null; toId: s
   // A plan for a previous from/to pair (or sort) is stale until the new one arrives.
   const current = plan && plan.from_station.id === fromId && plan.to_station.id === toId && plan.sort === sort ? plan : null;
   const options = current?.options ?? [];
+  // Only running trains can be shown in 3D; the rest haven't left yet.
+  const firstLive = options.find((option) => option.is_live);
   const loading = Boolean(fromId && toId && fromId !== toId && !current);
 
   return (
@@ -122,32 +124,18 @@ export function JourneyScreen({ fromId, toId }: { fromId: string | null; toId: s
             </div>
           )}
           {options.map((option) => (
-            <button
+            <JourneyOptionRow
               key={option.train_id}
-              type="button"
-              onClick={() => navigate({ name: "train", trainId: option.train_id })}
-              className="flex items-center gap-3 rounded-2xl border hairline bg-ink-800 px-4 py-3.5 text-left transition hover:bg-ink-750"
-            >
-              <span className="min-w-0 flex-1">
-                <span className="flex items-center gap-2 text-[15px] font-medium text-fg">
-                  <LineSwatch color={lines[option.line_code]?.color_hex ?? "#888"} className="h-2 w-2" />
-                  {trainTypeLabel(option.train_type)}
-                </span>
-                <span className="mt-1 block text-[13px] font-medium text-success">
-                  {formatMinutesAway(option.board_expected_epoch, now)}
-                </span>
-              </span>
-              <span className="text-right">
-                <span className="block text-[15px] font-semibold text-success">~{formatDuration(option.duration_seconds)}</span>
-                <span className="mt-1 block text-[12.5px] tabular-nums text-fg-muted">
-                  {formatClock(option.board_expected_epoch)} – {formatClock(option.alight_expected_epoch)}
-                </span>
-              </span>
-              <ChevronRight className="h-5 w-5 shrink-0 text-fg-subtle" />
-            </button>
+              option={option}
+              color={lines[option.line_code]?.color_hex ?? "#888"}
+              now={now}
+            />
           ))}
           {current && options.length === 0 && !current.interchange_hint && (
-            <EmptyState title={`No trains heading to ${to.name} right now`} body="Trains appear here once they're approaching your station." />
+            <EmptyState
+              title={`No direct trains to ${to.name} soon`}
+              body="Nothing in the timetable leaves for there in the next three hours."
+            />
           )}
           {loading && <p className="px-1 text-[13px] text-fg-subtle">Finding trains…</p>}
 
@@ -163,8 +151,8 @@ export function JourneyScreen({ fromId, toId }: { fromId: string | null; toId: s
 
       <div className="mt-auto pt-5">
         <PrimaryButton
-          disabled={options.length === 0}
-          onClick={() => options[0] && navigate({ name: "follow", trainId: options[0].train_id })}
+          disabled={!firstLive}
+          onClick={() => firstLive && navigate({ name: "follow", trainId: firstLive.train_id })}
         >
           <Box className="h-[18px] w-[18px]" />
           View in 3D
@@ -202,6 +190,49 @@ function EndpointRow({
     <button type="button" onClick={onClick} className="flex h-14 w-full items-center gap-4 pl-4 pr-16 text-left">
       <span className={`h-3 w-3 shrink-0 rounded-full ${dot} ring-4 ring-white/5`} />
       <span className={`truncate text-[16px] ${placeholder ? "text-fg-subtle" : "font-medium text-fg"}`}>{label}</span>
+    </button>
+  );
+}
+
+function JourneyOptionRow({ option, color, now }: { option: JourneyOption; color: string; now: number }) {
+  const late = option.is_live && option.delay_seconds >= 60;
+  const status = option.is_live ? (late ? `${Math.round(option.delay_seconds / 60)} min late` : "On time") : "Scheduled";
+  const body = (
+    <>
+      <span className="min-w-0 flex-1">
+        <span className="flex min-w-0 items-center gap-2 text-[15px] font-medium text-fg">
+          <LineSwatch color={color} className="h-2 w-2 shrink-0" />
+          <span className="shrink-0 whitespace-nowrap">{trainTypeLabel(option)}</span>
+          <span className="truncate text-[11.5px] font-normal text-fg-subtle">{trainIdentity(option)}</span>
+        </span>
+        <span className="mt-1 block truncate text-[13px] font-medium">
+          <span className="text-success">{formatMinutesAway(option.board_expected_epoch, now)}</span>
+          <span className={late ? "text-warning" : "text-fg-subtle"}>
+            {" · "}
+            {status}
+          </span>
+        </span>
+      </span>
+      <span className="text-right">
+        <span className="block text-[15px] font-semibold text-success">~{formatDuration(option.duration_seconds)}</span>
+        <span className="mt-1 block text-[12.5px] tabular-nums text-fg-muted">
+          {formatClock(option.board_expected_epoch)} – {formatClock(option.alight_expected_epoch)}
+        </span>
+      </span>
+    </>
+  );
+  const frame = "flex items-center gap-3 rounded-2xl border hairline bg-ink-800 px-4 py-3.5 text-left";
+
+  // A train that hasn't started its run has no live position to open.
+  if (!option.is_live) return <div className={`${frame} pr-[46px]`}>{body}</div>;
+  return (
+    <button
+      type="button"
+      onClick={() => navigate({ name: "train", trainId: option.train_id })}
+      className={`${frame} transition hover:bg-ink-750`}
+    >
+      {body}
+      <ChevronRight className="h-5 w-5 shrink-0 text-fg-subtle" />
     </button>
   );
 }

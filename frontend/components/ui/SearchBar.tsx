@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import { MapPin, Route, Search, TrainFront, X } from "lucide-react";
-import { trainTypeLabel } from "@/lib/format";
+import { trainIdentity, trainTypeLabel } from "@/lib/format";
 import { latLonToScene } from "@/lib/geo";
 import { navigate } from "@/lib/navigation";
 import { useRailView } from "@/lib/store";
@@ -111,7 +111,7 @@ export function SearchBar() {
             <ResultRow
               key={train.train_id}
               icon={<TrainFront className="h-4 w-4 text-fg-muted" />}
-              title={`${trainTypeLabel(train.train_type)} · ${train.train_id}`}
+              title={`${trainTypeLabel(train)} · ${trainIdentity(train)}`}
               subtitle={train.direction_label}
               onPick={() => pickTrain(train)}
             />

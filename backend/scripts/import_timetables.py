@@ -611,9 +611,12 @@ def _reconcile(a: ParsedTrain, b: ParsedTrain, number: str, railway: str) -> Par
         if b_arr < a_dep:
             raise TimetableImportError(f"{where}: merged times run backwards at {a_name} -> {b_name}")
     newer.stops = merged
+    # The railway the train starts on runs it: a Harbour train extended
+    # in Western's table is still a Harbour train.
+    starter = a if a.stops[0][0] == merged[0][0] else b
+    newer.railway, newer.line, newer.code = starter.railway, starter.line, starter.code or newer.code
     newer.ac = newer.ac or older.ac
     newer.cars = max(newer.cars, older.cars)
-    newer.code = newer.code or older.code
     newer.ladies_coaches_reserved = newer.ladies_coaches_reserved or older.ladies_coaches_reserved
     newer.corrections = [
         *newer.corrections,

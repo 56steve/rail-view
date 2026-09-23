@@ -24,7 +24,7 @@ from types import MappingProxyType
 
 from app.schemas.station import StationOut
 from app.schemas.train import TrainPositionUpdate
-from app.services.simulator.schedule import COACH_COUNT, ScheduledStop
+from app.services.simulator.schedule import ScheduledStop
 from app.services.telemetry import ActiveRun, RawFix, ScheduleProvider
 from app.services.track_filter import TrackFilter
 from app.services.track_matching import RailwayRoute, StationChainage
@@ -70,6 +70,10 @@ class TrainContext:
     def scheduled_epoch(self, stop: ScheduledStop) -> float:
         return self.run.started_at_epoch + stop.scheduled_arrival_s
 
+    def published_epoch(self, stop: ScheduledStop) -> float:
+        """The time the published timetable gives for `stop`."""
+        return self.run.started_at_epoch + stop.display_s
+
     def expected_epoch(self, stop: ScheduledStop) -> float:
         """When this train is expected at `stop`, given its current delay."""
         return self.scheduled_epoch(stop) + self.delay_s
@@ -101,6 +105,11 @@ class PositionProcessor:
 
     def context(self, train_id: str) -> TrainContext | None:
         return self._contexts.get(train_id)
+
+    def forget(self, train_id: str) -> None:
+        """Drop everything known about a train whose run has ended."""
+        self._contexts.pop(train_id, None)
+        self._kinematics.pop(train_id, None)
 
     def contexts(self) -> Mapping[str, TrainContext]:
         return MappingProxyType(self._contexts)
@@ -161,7 +170,9 @@ class PositionProcessor:
             line_code=plan.line_code,
             line_name=route.seed.line.name,
             route_code=plan.route_code,
-            coach_count=COACH_COUNT,
+            service_code=plan.service_code,
+            ac=plan.ac,
+            coach_count=plan.coach_count,
             origin=station_out(plan.origin),
             destination=station_out(plan.destination),
             current_station=station_out(current_stop.station) if current_stop is not None else None,

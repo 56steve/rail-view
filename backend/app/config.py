@@ -19,13 +19,9 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
 
     # How often (seconds) the simulator advances trains and the WebSocket
-    # hub broadcasts a position snapshot to all connected clients.
+    # hub broadcasts a position snapshot to all connected clients. Which
+    # trains run comes from the official timetable, not from settings.
     simulation_tick_seconds: float = 1.0
-
-    # Trains simulated on each route (split evenly between both directions).
-    # Routes sharing a trunk (Central's Kasara and Karjat routes) both run
-    # over it, so the trunk sees their combined frequency.
-    simulated_trains_per_route: int = 10
 
     # If no position update for a train is received/generated within this
     # window, clients must treat that train's data as stale rather than

@@ -50,7 +50,7 @@ export function FollowScreen({ trainId }: { trainId: string }) {
             className={`h-2.5 w-2.5 shrink-0 rounded-full ${stale ? "bg-warning" : "bg-success shadow-[0_0_10px_rgb(61_214_140/0.8)]"}`}
           />
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-[15px] font-semibold text-fg">{trainTypeLabel(train.train_type)}</span>
+            <span className="block truncate text-[15px] font-semibold text-fg">{trainTypeLabel(train)}</span>
             <span className="block truncate text-[12px] text-fg-muted">{train.direction_label}</span>
           </span>
           {stale ? (

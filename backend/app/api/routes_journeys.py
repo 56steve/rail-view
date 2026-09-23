@@ -21,6 +21,7 @@ def get_journey(
             from_station,
             to_station,
             sort,
+            request.app.state.timetable,
             request.app.state.position_processor.contexts(),
             request.app.state.live_cache.live_train_ids(now),
             now,

@@ -61,6 +61,12 @@ export function formatDistance(metres: number): string {
   return metres < 1000 ? `${Math.round(metres / 10) * 10} m` : `${(metres / 1000).toFixed(1)} km`;
 }
 
-export function trainTypeLabel(trainType: "FAST" | "SLOW"): string {
-  return trainType === "FAST" ? "Fast Local" : "Slow Local";
+export function trainTypeLabel(train: { train_type: "FAST" | "SLOW"; ac: boolean }): string {
+  const service = train.train_type === "FAST" ? "Fast Local" : "Slow Local";
+  return train.ac ? `AC ${service}` : service;
+}
+
+/** "96405 · N 5" - the train number, and Central's service code if any. */
+export function trainIdentity(train: { train_id: string; service_code: string | null }): string {
+  return train.service_code ? `${train.train_id} · ${train.service_code}` : train.train_id;
 }

@@ -1,12 +1,23 @@
 import json
-import random
 import statistics
+from datetime import date
 from pathlib import Path
 
 import pytest
 
-from app.services.simulator.physics import leg_run_time_s, profile_speed_m_s
-from app.services.simulator.schedule import build_run_plan, random_train_type
+from app.services.simulator.physics import (
+    cruise_for_leg_time,
+    leg_distance_at_m,
+    leg_run_time_s,
+    leg_time_at_s,
+    profile_speed_m_s,
+)
+from app.services.simulator.schedule import (
+    MAX_LINE_SPEED_M_S,
+    build_run_plan,
+    timetable_run_plan,
+)
+from app.services.timetable import load_timetable
 from app.services.track_matching import get_route
 
 TIMETABLE = Path(__file__).resolve().parents[1] / "app" / "data" / "generated" / "timetable.json"
@@ -88,12 +99,6 @@ def test_stop_after_and_stop_for() -> None:
     assert plan.stop_for("XXX") is None
 
 
-def test_random_train_type_respects_line_service() -> None:
-    rng = random.Random(1)
-    assert {random_train_type(rng, get_route("HR-PNVL")) for _ in range(50)} == {"SLOW"}
-    assert {random_train_type(rng, get_route("CR-KSRA")) for _ in range(200)} == {"FAST", "SLOW"}
-
-
 def test_profile_ramps_up_and_down() -> None:
     cruise = 15.0
     assert profile_speed_m_s(1000, 1000, cruise) == cruise
@@ -103,3 +108,58 @@ def test_profile_ramps_up_and_down() -> None:
 
 def test_leg_time_exceeds_pure_cruise_time() -> None:
     assert leg_run_time_s(2000, 15.0) > 2000 / 15.0
+
+
+def test_leg_time_scales_inversely_with_cruise() -> None:
+    assert leg_run_time_s(1800, 10.0) == pytest.approx(2 * leg_run_time_s(1800, 20.0))
+    assert leg_time_at_s(1800, 10.0, 600) == pytest.approx(2 * leg_time_at_s(1800, 20.0, 600))
+
+
+def test_cruise_solved_for_a_leg_time_meets_it_exactly() -> None:
+    cruise = cruise_for_leg_time(2400, 150.0)
+    assert leg_run_time_s(2400, cruise) == pytest.approx(150.0)
+
+
+def test_distance_at_time_inverts_time_at_distance() -> None:
+    for distance in (0.0, 120.0, 900.0, 1799.0):
+        elapsed = leg_time_at_s(1800, 14.0, distance)
+        assert leg_distance_at_m(1800, 14.0, elapsed) == pytest.approx(distance, abs=0.05)
+
+
+WEDNESDAY = date(2026, 9, 23)
+
+
+def test_timetable_plan_keeps_the_published_times() -> None:
+    train = load_timetable().by_number()["96401"]  # CSMT 00:08 -> Kasara
+    plan = timetable_run_plan(train, get_route(train.route_code), WEDNESDAY)
+    assert plan.train_id == "96401" and plan.service_code == "N 1"
+    assert plan.origin.station.name == "CSMT" and plan.destination.station.name == "Kasara"
+    origin_departure = train.first_departure_min * 60
+    for scheduled, published in zip(plan.stops, train.stops, strict=True):
+        assert scheduled.published_s == pytest.approx(
+            (published.departure_min if scheduled is not plan.stops[-1] else published.arrival_min) * 60
+            - origin_departure
+        )
+    # On time everywhere this train's times are physically achievable.
+    assert all(s.scheduled_departure_s <= s.published_s + 1 for s in plan.stops[:-1])
+    assert plan.stops[-1].scheduled_arrival_s == pytest.approx(plan.stops[-1].published_s, abs=1)
+
+
+def test_timetable_plans_never_exceed_line_speed_and_stay_close_to_published() -> None:
+    lags = []
+    for train in load_timetable().trains:
+        plan = timetable_run_plan(train, get_route(train.route_code), WEDNESDAY)
+        assert max(plan.leg_cruise_m_s) <= MAX_LINE_SPEED_M_S + 1e-9, train.number
+        lags.append(max(s.scheduled_departure_s - s.published_s for s in plan.stops[:-1]))
+    assert statistics.median(lags) <= 1
+    # Minute rounding occasionally asks for more than line speed; the plan
+    # absorbs it within a couple of minutes.
+    assert max(lags) < 180
+
+
+def test_timetable_plan_marks_fast_trains_and_rakes() -> None:
+    timetable = load_timetable()
+    fast = next(t for t in timetable.trains if t.fast and t.cars == 15)
+    plan = timetable_run_plan(fast, get_route(fast.route_code), WEDNESDAY)
+    assert plan.train_type == "FAST"
+    assert plan.coach_count == 15

@@ -34,6 +34,14 @@ class LiveTrainCache:
             result.append(update)
         return result
 
+    def remove(self, train_id: str) -> None:
+        """Forget a train that is no longer in service (its run ended), as
+        opposed to one that has gone quiet, which is marked stale."""
+        self._latest.pop(train_id, None)
+
+    def train_ids(self) -> set[str]:
+        return set(self._latest)
+
     def get(self, train_id: str, now_epoch: float | None = None) -> TrainPositionUpdate | None:
         return next((u for u in self.snapshot(now_epoch) if u.train_id == train_id), None)
 

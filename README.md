@@ -10,9 +10,12 @@ It covers four lines:
 | Harbour | CSMT – Panvel, CSMT – Goregaon (forking at Wadala Road), Panvel – Goregaon |
 | Trans-Harbour | Thane – Vashi and Thane – Panvel (forking at Turbhe) |
 
-Train movements are **simulated**. They run through the same pipeline a
-real feed would use, and no authorised real-time feed for Mumbai locals
-is connected yet (see [Live data](#live-data)).
+The trains on the map are the ones Central and Western Railway's
+**official timetable** has running at that moment, with their real train
+numbers, service codes and rakes: around 200 at a time, about 3,000 a
+day. Their exact positions and delays are **simulated**, through the same
+pipeline a real feed would use. No authorised real-time feed for Mumbai
+locals is connected yet (see [Live data](#live-data)).
 
 The 3D view shows where your train is, how far it is from the next
 station, and whether it's on time. Station positions, track centrelines,
@@ -28,7 +31,7 @@ Mumbai, and by day the scene is lit from where the sun really is.
 ## How it works
 
 ```
-Telemetry source (simulator today, authorised railway feed later)
+Telemetry source (timetable-driven simulator today, authorised feed later)
         |  raw, noisy GPS fixes
         v
 Position processor   snaps each fix onto the train's route (GPS-to-track
@@ -74,14 +77,19 @@ Next.js client       interpolates along the track between snapshots and
 - `app/services/track_matching.py`: GPS fix → chainage on a route.
 - `app/services/track_filter.py`: constant-velocity Kalman filter over
   chainage.
-- `app/services/simulator/`: the simulated feed. Trains follow a shared
-  speed profile, dwell times vary, and each rake forms its return working
-  after a layover, so delays emerge instead of being made up. GPS fixes
-  get jitter and dropouts.
+- `app/services/timetable.py`: the imported official timetable, each
+  train fitted onto the route and direction it runs, with the days it
+  runs (the Sunday schedule, not-on-Sundays and weekday-only trains).
+- `app/services/simulator/`: the simulated feed. Every train due now runs
+  on the shared speed profile at per-leg speeds solved from the published
+  times. Dwell times vary and late trains claw time back within line
+  speed, so delays emerge instead of being made up. GPS fixes get jitter
+  and dropouts, and finished trains leave the map.
 - `app/services/position_processor.py`: the pipeline's middle stage.
 - `app/services/journey_planner.py`: direct trains between two stations
-  from the live timetable, or where to change (another line, or the
-  other Central branch).
+  over the whole timetable, including trains that haven't started yet,
+  with running trains' current delay applied. Or where to change (another
+  line, or another branch).
 - `app/services/telemetry.py`: the `TelemetrySource` / `ScheduleProvider`
   protocols a real feed implements.
 - `app/models/` + `alembic/`: the PostGIS schema for the static network
@@ -182,9 +190,8 @@ uv run python scripts/seed_db.py
 
 There is no public, freely licensed real-time GPS feed for Mumbai locals.
 A live source plugs in by implementing `TelemetrySource` and
-`ScheduleProvider`; nothing downstream changes. The official timetable
-(`timetable.json`, imported from the railways' own published
-timetables) is next to replace the simulator's generated one.
+`ScheduleProvider`; nothing downstream changes. Trains then keep their
+timetable identity, and only their positions come from the feed.
 
 ## Attribution
 

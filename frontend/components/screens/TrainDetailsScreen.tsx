@@ -6,7 +6,7 @@ import { useShallow } from "zustand/react/shallow";
 import { useIsDesktop } from "@/hooks/useLayout";
 import { useNowSeconds } from "@/hooks/useNow";
 import { ApiError, fetchTrainDetail } from "@/lib/api";
-import { delayTone, formatClock, formatSpeed, minutesUntil, trainTypeLabel } from "@/lib/format";
+import { delayTone, formatClock, formatSpeed, minutesUntil, trainIdentity, trainTypeLabel } from "@/lib/format";
 import { navigate, navigateBack } from "@/lib/navigation";
 import { useRailView } from "@/lib/store";
 import type { StopTime, TrainDetail } from "@/lib/types";
@@ -75,12 +75,12 @@ export function TrainDetailsScreen({ trainId }: { trainId: string }) {
           <>
             <div>
               <div className="flex items-center gap-3">
-                <h1 className="text-[24px] font-semibold tracking-[-0.01em] text-fg">{trainTypeLabel(train.train_type)}</h1>
+                <h1 className="text-[24px] font-semibold tracking-[-0.01em] text-fg">{trainTypeLabel(train)}</h1>
                 <StatusBadge stale={stale} atPlatform={Boolean(atPlatform)} />
               </div>
               <p className="mt-1 text-[16px] text-fg-muted">{train.direction_label}</p>
               <p className="mt-1.5 text-[13px] text-fg-subtle">
-                Train {train.train_id} <span className="mx-1.5 text-fg-subtle/60">|</span> {train.coach_count} Coaches
+                Train {trainIdentity(train)} <span className="mx-1.5 text-fg-subtle/60">|</span> {train.coach_count} Coaches
                 <span className="mx-1.5 text-fg-subtle/60">|</span> {train.line_name} line
               </p>
             </div>

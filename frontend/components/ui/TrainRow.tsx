@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronRight } from "lucide-react";
-import { formatNextStop, trainTypeLabel } from "@/lib/format";
+import { formatNextStop, trainIdentity, trainTypeLabel } from "@/lib/format";
 import { navigate } from "@/lib/navigation";
 import type { TrainPositionUpdate } from "@/lib/types";
 import { DelayText, LineSwatch } from "./primitives";
@@ -17,8 +17,8 @@ export function TrainRow({ train, color }: { train: TrainPositionUpdate; color: 
       <LineSwatch color={color} className="h-9 w-1 rounded-full" />
       <span className="min-w-0 flex-1">
         <span className="flex items-baseline gap-2">
-          <span className="text-[14.5px] font-semibold text-fg">{trainTypeLabel(train.train_type)}</span>
-          <span className="text-[11.5px] text-fg-subtle">{train.train_id}</span>
+          <span className="text-[14.5px] font-semibold text-fg">{trainTypeLabel(train)}</span>
+          <span className="text-[11.5px] text-fg-subtle">{trainIdentity(train)}</span>
         </span>
         <span className="block truncate text-[13px] text-fg-muted">{train.direction_label}</span>
         <span className="mt-0.5 block truncate text-[12px] text-fg-subtle">

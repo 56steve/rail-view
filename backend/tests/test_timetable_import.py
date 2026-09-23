@@ -129,6 +129,8 @@ def test_disagreeing_listings_prefer_the_newer_timetable() -> None:
         ("Borivali", 1313, 1313),
     ]
     assert any("listings disagree" in c for c in merged.corrections)
+    # Still the Harbour train it started as.
+    assert (merged.railway, merged.line) == ("CR", "harbour")
 
 
 def test_two_unrelated_trains_sharing_a_number_fail_the_import() -> None:

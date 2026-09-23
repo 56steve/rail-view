@@ -15,8 +15,12 @@ class TrainPositionUpdate(BaseModel):
     renders. Never a raw GPS fix.
     """
 
-    train_id: str
+    train_id: str  # the train number in the official timetable
     train_type: TrainType
+    # Central Railway's service code (e.g. "N 5" - the 5th Kasara local);
+    # Western Railway doesn't publish them.
+    service_code: str | None
+    ac: bool
     line_code: str
     line_name: str
     route_code: str
@@ -50,6 +54,8 @@ class TrainPositionUpdate(BaseModel):
 class StopTime(BaseModel):
     station: StationOut
     state: StopState
+    # The time in the published timetable: departure, or arrival at the
+    # last stop.
     scheduled_epoch: float
     # Estimated time at this stop given current delay (upcoming stops), or
     # the observed arrival time (stops this train was seen at).

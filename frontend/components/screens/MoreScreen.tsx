@@ -44,10 +44,11 @@ export function MoreScreen() {
       <section className="mt-6 flex flex-col gap-2.5">
         <SectionTitle>How live is this?</SectionTitle>
         <Card className="px-5 py-4 text-[13.5px] leading-relaxed text-fg-muted">
-          Train movements are currently <span className="text-fg">simulated</span> on the real Western, Central,
-          Harbour and Trans-Harbour tracks, and run through the same pipeline a live feed would: GPS positions are
-          snapped onto the track, filtered, and compared against a timetable to work out delays. No authorised
-          real-time feed for Mumbai locals is connected yet.
+          The trains on the map are the ones Central and Western Railway&apos;s{" "}
+          <span className="text-fg">official timetable</span> has running right now, with their real numbers and
+          rakes. Their exact positions and delays are <span className="text-fg">simulated</span> along the real
+          tracks, through the same pipeline a live feed would use. No authorised real-time feed for Mumbai locals is
+          connected yet.
         </Card>
       </section>
 

@@ -2,7 +2,7 @@
 rest of the pipeline (track matching, ETA, WebSocket broadcast).
 
 `TelemetrySource` is the seam described in the product spec: swap
-`SimulatedTelemetrySource` (see `app.services.simulator.engine`) for a
+`TimetableTelemetrySource` (see `app.services.simulator.engine`) for a
 `LiveRailwayApiSource` later, and nothing downstream of `PositionProcessor`
 needs to change, because both speak the same `RawFix` / `ScheduleProvider`
 contract.

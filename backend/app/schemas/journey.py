@@ -11,10 +11,16 @@ JourneySort = Literal["fastest", "soonest"]
 class JourneyOption(BaseModel):
     train_id: str
     train_type: TrainType
+    service_code: str | None
+    ac: bool
     line_code: str
     line_name: str
     route_code: str
     direction_label: str
+    # Running now, so the times include its current delay; otherwise the
+    # train hasn't started yet and the times are the timetable's.
+    is_live: bool
+    board_scheduled_epoch: float
     board_expected_epoch: float
     alight_expected_epoch: float
     duration_seconds: float
