@@ -42,10 +42,14 @@ Position processor   snaps each fix onto the train's route (GPS-to-track
 Live train cache     last-known state per train; marks a train "stale"
         |            after 15 s of silence instead of inventing positions
         v
-WebSocket hub        one snapshot per tick to every client (/ws/live)
+WebSocket hub        one snapshot per tick to every client (/ws/live), as a
+        |            compact table (~33 KB for ~180 trains); a client on a
+        |            slow connection skips snapshots instead of delaying
+        |            everyone else
         v
-Next.js client       interpolates along the track between snapshots and
-                     renders trains on the track their direction runs on
+Next.js client       glides each train along the track over the measured
+                     time between snapshots and renders it on the track
+                     its direction runs on
 ```
 
 ### Network model

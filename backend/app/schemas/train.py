@@ -2,7 +2,7 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-from app.schemas.station import StationOut
+from app.schemas.station import StationOut, StationRef
 
 TrainStatus = Literal["live", "stale"]
 TrainType = Literal["FAST", "SLOW"]
@@ -26,10 +26,10 @@ class TrainPositionUpdate(BaseModel):
     route_code: str
     coach_count: int
 
-    origin: StationOut
-    destination: StationOut
-    current_station: StationOut | None
-    next_station: StationOut | None
+    origin: StationRef
+    destination: StationRef
+    current_station: StationRef | None
+    next_station: StationRef | None
 
     direction_forward: bool
     direction_label: str  # e.g. "Churchgate → Borivali"
@@ -48,7 +48,6 @@ class TrainPositionUpdate(BaseModel):
 
     status: TrainStatus
     last_updated_epoch: float
-    last_updated_iso: str
 
 
 class StopTime(BaseModel):

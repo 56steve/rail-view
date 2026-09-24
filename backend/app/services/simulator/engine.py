@@ -189,8 +189,20 @@ class TimetableTelemetrySource:
     # -- motion ------------------------------------------------------------
 
     async def stream(self) -> AsyncIterator[list[RawFix]]:
+        """One batch of fixes every `tick_seconds`, on a fixed beat: the
+        time spent simulating (and by whoever consumes each batch) comes out
+        of the wait, rather than adding to it. A tick that overruns is
+        followed straight away by the next one, and the beat restarts from
+        there instead of bursting to catch up."""
+        loop = asyncio.get_running_loop()
+        deadline = loop.time()
         while True:
-            await asyncio.sleep(self._tick_seconds)
+            deadline += self._tick_seconds
+            delay = deadline - loop.time()
+            if delay > 0:
+                await asyncio.sleep(delay)
+            else:
+                deadline = loop.time()
             yield self.tick(self._clock())
 
     def tick(self, now_epoch: float) -> list[RawFix]:

@@ -2,8 +2,8 @@
 
 import { useEffect } from "react";
 import { WS_URL } from "@/lib/api";
+import { decodeSnapshot } from "@/lib/liveWire";
 import { useRailView } from "@/lib/store";
-import type { SnapshotMessage } from "@/lib/types";
 
 const RECONNECT_BASE_MS = 1000;
 const RECONNECT_MAX_MS = 15000;
@@ -35,10 +35,11 @@ export function useLiveTrains(): void {
 
       socket.onmessage = (event: MessageEvent<string>) => {
         try {
-          const message = JSON.parse(event.data) as SnapshotMessage;
-          if (message.type === "snapshot") applySnapshot(message.trains);
-        } catch {
+          const trains = decodeSnapshot(JSON.parse(event.data));
+          if (trains) applySnapshot(trains);
+        } catch (error) {
           // Malformed frame: skip it; the next snapshot re-syncs state.
+          console.warn(error);
         }
       };
 

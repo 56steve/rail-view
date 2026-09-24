@@ -3,7 +3,7 @@ import time
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-from app.schemas.websocket import SnapshotMessage
+from app.services.live_wire import encode_snapshot
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -14,13 +14,8 @@ async def websocket_live(websocket: WebSocket) -> None:
     manager = websocket.app.state.connection_manager
     cache = websocket.app.state.live_cache
 
-    await manager.connect(websocket)
+    await manager.connect(websocket, encode_snapshot(time.time(), cache.snapshot()))
     try:
-        # Send an immediate snapshot so a just-connected client sees
-        # trains right away instead of waiting for the next tick.
-        initial = SnapshotMessage(server_time_epoch=time.time(), trains=cache.snapshot())
-        await websocket.send_text(initial.model_dump_json())
-
         while True:
             # Clients don't need to send anything; this blocks until they
             # disconnect, which is how we notice and clean up.

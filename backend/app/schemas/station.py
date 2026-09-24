@@ -11,6 +11,15 @@ class StationOut(BaseModel):
     fast_halt: bool
 
 
+class StationRef(BaseModel):
+    """A station named in a live train position. Codes are unique across
+    the network; everything else about a station comes from the network
+    data, which clients load once."""
+
+    code: str
+    name: str
+
+
 class LineOut(BaseModel):
     code: str
     name: str

@@ -12,6 +12,13 @@ export interface StationOut {
   fast_halt: boolean;
 }
 
+/** A station named in a live train position. Codes are unique across the
+ * network; the rest of a station's data is in the network's routes. */
+export interface StationRef {
+  code: string;
+  name: string;
+}
+
 export interface LineOut {
   code: string;
   name: string;
@@ -66,10 +73,10 @@ export interface TrainPositionUpdate {
   line_name: string;
   route_code: string;
   coach_count: number;
-  origin: StationOut;
-  destination: StationOut;
-  current_station: StationOut | null;
-  next_station: StationOut | null;
+  origin: StationRef;
+  destination: StationRef;
+  current_station: StationRef | null;
+  next_station: StationRef | null;
   direction_forward: boolean;
   direction_label: string;
   lat: number;
@@ -82,7 +89,6 @@ export interface TrainPositionUpdate {
   destination_eta_seconds: number;
   status: TrainStatus;
   last_updated_epoch: number;
-  last_updated_iso: string;
 }
 
 export type StopState = "departed" | "at_platform" | "next" | "upcoming";
@@ -137,10 +143,20 @@ export interface ServiceDay {
   holiday_name: string | null;
 }
 
-export interface SnapshotMessage {
-  type: "snapshot";
+/** One value in a snapshot row: a TrainPositionUpdate field, with station
+ * fields reduced to station codes. */
+export type SnapshotCell = string | number | boolean | null;
+
+/** One tick of `/ws/live`: every known train as a table. `fields` names
+ * the columns, each row of `trains` is one train's values in that order,
+ * and station fields hold a code whose name is in `stations`. Decoded by
+ * `lib/liveWire.ts`. */
+export interface SnapshotTableMessage {
+  type: "snapshot.table";
   server_time_epoch: number;
-  trains: TrainPositionUpdate[];
+  fields: string[];
+  stations: Record<string, string>;
+  trains: SnapshotCell[][];
 }
 
 export type ConnectionStatus = "connecting" | "live" | "reconnecting";
