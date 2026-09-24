@@ -14,6 +14,11 @@ export function NextStationPin({ trainId }: { trainId: string }) {
   const next = useRailView((s) => s.trainPairs[trainId]?.to.next_station ?? null);
   const routeCode = useRailView((s) => s.trainPairs[trainId]?.to.route_code ?? null);
   const track = useRailView((s) => (routeCode ? s.tracks[routeCode] : undefined));
+  // Where the station is along this train's route.
+  const nextChainage = useRailView((s) => {
+    if (!next || !routeCode) return null;
+    return s.routes[routeCode]?.stations.find((station) => station.code === next.code)?.chainage_m ?? null;
+  });
   const [distance, setDistance] = useState<number | null>(null);
 
   const anchor = useCallback((element: HTMLDivElement | null) => {
@@ -22,23 +27,23 @@ export function NextStationPin({ trainId }: { trainId: string }) {
   }, []);
 
   useEffect(() => {
-    if (!next || !track) return;
-    const p = track.sample(next.chainage_m);
+    if (nextChainage === null || !track) return;
+    const p = track.sample(nextChainage);
     moveAnchor(ANCHOR_ID, p.x, 4, p.z);
-  }, [next, track]);
+  }, [nextChainage, track]);
 
   useEffect(() => {
-    if (!next) return;
+    if (nextChainage === null) return;
     const update = () => {
       const pair = useRailView.getState().trainPairs[trainId];
-      if (pair) setDistance(Math.abs(next.chainage_m - trainPose(pair, performance.now()).chainage));
+      if (pair) setDistance(Math.abs(nextChainage - trainPose(pair, performance.now()).chainage));
     };
     update();
     const timer = setInterval(update, 500);
     return () => clearInterval(timer);
-  }, [next, trainId]);
+  }, [nextChainage, trainId]);
 
-  if (!next) return null;
+  if (!next || nextChainage === null) return null;
 
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden">

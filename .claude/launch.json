@@ -4,8 +4,8 @@
     {
       "name": "railpulse-frontend",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "frontend", "run", "dev"],
-      "port": 3000
+      "runtimeArgs": ["--prefix", "frontend", "run", "dev", "--", "--port", "3010"],
+      "port": 3010
     }
   ]
 }

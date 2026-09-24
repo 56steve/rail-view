@@ -1,5 +1,6 @@
 """The timetable-driven simulated feed."""
 
+import time
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -101,3 +102,22 @@ def test_trains_move_along_their_route_over_a_few_minutes() -> None:
 
 def test_unknown_train_has_no_active_run() -> None:
     assert make_source(WEDNESDAY_EVENING).get_active_run("00000") is None
+
+
+async def test_the_feed_keeps_a_steady_beat_while_ticks_take_time() -> None:
+    tick_s, work_s = 0.1, 0.06
+    source = TimetableTelemetrySource(get_all_routes(), load_timetable(), tick_s, seed=1, clock=time.time)
+
+    def slow_tick(now_epoch: float) -> list:
+        time.sleep(work_s)  # a slow CPU, like a small cloud instance
+        return []
+
+    source.tick = slow_tick  # type: ignore[method-assign]
+    stamps = []
+    async for _ in source.stream():
+        stamps.append(time.monotonic())
+        if len(stamps) == 8:
+            break
+    gaps = [b - a for a, b in zip(stamps, stamps[1:], strict=False)]
+    # Waiting a full tick after the work would space batches work + tick apart.
+    assert sum(gaps) / len(gaps) == pytest.approx(tick_s, abs=0.02)

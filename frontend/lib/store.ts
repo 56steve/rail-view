@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { type RouteLanes, routeLanes } from "./lanes";
+import { nextPair, SnapshotRhythm } from "./motion";
 import { TrackPath } from "./track";
 import type {
   ConnectionStatus,
@@ -33,6 +34,8 @@ export interface TrainSnapshotPair {
   from: TrainPositionUpdate;
   to: TrainPositionUpdate;
   receivedAtMs: number;
+  /** How long the train takes to glide from `from` to `to`. */
+  glideMs: number;
 }
 
 export interface SavedJourney {
@@ -134,6 +137,8 @@ export type PreferenceKey =
   | "savedJourneys"
   | "alerts";
 
+const snapshotRhythm = new SnapshotRhythm();
+
 let idCounter = 0;
 function nextId(prefix: string): string {
   idCounter += 1;
@@ -179,10 +184,10 @@ export const useRailView = create<RailViewState>((set, get) => ({
   applySnapshot: (trains) =>
     set((state) => {
       const now = performance.now();
+      const glideMs = snapshotRhythm.arrived(now);
       const next: Record<string, TrainSnapshotPair> = {};
       for (const train of trains) {
-        const existing = state.trainPairs[train.train_id];
-        next[train.train_id] = { from: existing ? existing.to : train, to: train, receivedAtMs: now };
+        next[train.train_id] = nextPair(state.trainPairs[train.train_id], train, now, glideMs);
       }
       return { trainPairs: next };
     }),

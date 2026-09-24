@@ -70,8 +70,9 @@ def test_journey_with_unknown_station_is_404(client) -> None:
 def test_websocket_sends_an_initial_snapshot(client) -> None:
     with client.websocket_connect("/ws/live") as ws:
         message = ws.receive_json()
-    assert message["type"] == "snapshot"
+    assert message["type"] == "snapshot.table"
     assert len(message["trains"]) > 0
+    assert all(len(row) == len(message["fields"]) for row in message["trains"])
 
 
 def test_service_day_says_which_timetable_runs_today(client) -> None:

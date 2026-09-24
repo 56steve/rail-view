@@ -19,10 +19,9 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
 from types import MappingProxyType
 
-from app.schemas.station import StationOut
+from app.schemas.station import StationOut, StationRef
 from app.schemas.train import TrainPositionUpdate
 from app.services.simulator.schedule import ScheduledStop
 from app.services.telemetry import ActiveRun, RawFix, ScheduleProvider
@@ -94,6 +93,10 @@ def station_out(sc: StationChainage) -> StationOut:
         chainage_m=sc.chainage_m,
         fast_halt=sc.station.fast_halt,
     )
+
+
+def station_ref(sc: StationChainage) -> StationRef:
+    return StationRef(code=sc.station.code, name=sc.station.name)
 
 
 class PositionProcessor:
@@ -173,10 +176,10 @@ class PositionProcessor:
             service_code=plan.service_code,
             ac=plan.ac,
             coach_count=plan.coach_count,
-            origin=station_out(plan.origin),
-            destination=station_out(plan.destination),
-            current_station=station_out(current_stop.station) if current_stop is not None else None,
-            next_station=station_out(next_stop.station) if next_stop is not None else None,
+            origin=station_ref(plan.origin),
+            destination=station_ref(plan.destination),
+            current_station=station_ref(current_stop.station) if current_stop is not None else None,
+            next_station=station_ref(next_stop.station) if next_stop is not None else None,
             direction_forward=direction_forward,
             direction_label=f"{plan.origin.station.name} → {plan.destination.station.name}",
             lat=lat,
@@ -189,7 +192,6 @@ class PositionProcessor:
             destination_eta_seconds=round(max(0.0, context.expected_epoch(plan.stops[-1]) - fix.timestamp_s)),
             status="live",
             last_updated_epoch=fix.timestamp_s,
-            last_updated_iso=datetime.fromtimestamp(fix.timestamp_s, tz=UTC).isoformat(),
         )
 
     @staticmethod
