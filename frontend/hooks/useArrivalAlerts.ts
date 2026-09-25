@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { trainIdentity, trainTypeLabel } from "@/lib/format";
+import { doorLabel, livePlatform, platformLabel } from "@/lib/platform";
 import { useRailView } from "@/lib/store";
 
 // A train that never reaches the alert station (e.g. it terminated and
@@ -43,9 +44,18 @@ export function useArrivalAlerts(): void {
           if (!atStation && !approaching) continue;
 
           state.removeAlert(alert.id);
+          // The live platform is the next stop's, so it only belongs on an
+          // approaching alert, and only when certain.
+          const platform = livePlatform(train.next_platform, train.next_platform_certain, train.next_platform_door);
+          const platformPart = platform?.certain
+            ? [platformLabel(platform), doorLabel(platform.door)].filter(Boolean).join(" · ")
+            : null;
+          const arriving = `Arriving at ${alert.stationName} in ${Math.max(1, Math.round((train.eta_seconds ?? 0) / 60))} min`;
           const title = atStation
             ? `${trainTypeLabel(train)} at ${alert.stationName}`
-            : `Arriving at ${alert.stationName} in ${Math.max(1, Math.round((train.eta_seconds ?? 0) / 60))} min`;
+            : platformPart
+              ? `${arriving} · ${platformPart}`
+              : arriving;
           const body = `${train.direction_label} · ${trainIdentity(train)}`;
           state.pushToast({ title, body, tone: "success" });
           notify(title, body);

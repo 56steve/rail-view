@@ -7,6 +7,7 @@ import { fetchJourney } from "@/lib/api";
 import { formatClock, formatDuration, formatMinutesAway, trainIdentity, trainTypeLabel } from "@/lib/format";
 import { directSegment } from "@/lib/journey";
 import { navigate, navigateBack } from "@/lib/navigation";
+import { doorLabel, platformLabel } from "@/lib/platform";
 import { useRailView } from "@/lib/store";
 import type { JourneyOption, JourneyPlan, JourneySort, StationIndexEntry } from "@/lib/types";
 import { JourneyMiniMap } from "../ui/JourneyMiniMap";
@@ -197,6 +198,8 @@ function EndpointRow({
 function JourneyOptionRow({ option, color, now }: { option: JourneyOption; color: string; now: number }) {
   const late = option.is_live && option.delay_seconds >= 60;
   const status = option.is_live ? (late ? `${Math.round(option.delay_seconds / 60)} min late` : "On time") : "Scheduled";
+  // Which side to get out at the destination, like m-Indicator.
+  const alightDoor = doorLabel(option.alight_platform?.door ?? null);
   const body = (
     <>
       <span className="min-w-0 flex-1">
@@ -212,12 +215,16 @@ function JourneyOptionRow({ option, color, now }: { option: JourneyOption; color
             {status}
           </span>
         </span>
+        {option.board_platform && (
+          <span className="mt-0.5 block truncate text-[11.5px] text-fg-muted">{platformLabel(option.board_platform)}</span>
+        )}
       </span>
       <span className="text-right">
         <span className="block text-[15px] font-semibold text-success">~{formatDuration(option.duration_seconds)}</span>
         <span className="mt-1 block text-[12.5px] tabular-nums text-fg-muted">
           {formatClock(option.board_expected_epoch)} – {formatClock(option.alight_expected_epoch)}
         </span>
+        {alightDoor && <span className="mt-0.5 block text-[11.5px] text-fg-subtle">{alightDoor}</span>}
       </span>
     </>
   );
