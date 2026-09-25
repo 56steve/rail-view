@@ -1,4 +1,6 @@
+import json
 import time
+import zlib
 
 import pytest
 from fastapi.testclient import TestClient
@@ -73,6 +75,14 @@ def test_websocket_sends_an_initial_snapshot(client) -> None:
     assert message["type"] == "snapshot.table"
     assert len(message["trains"]) > 0
     assert all(len(row) == len(message["fields"]) for row in message["trains"])
+
+
+def test_websocket_v2_sends_a_full_compressed_table_first(client) -> None:
+    with client.websocket_connect("/ws/live?v=2&encoding=deflate") as ws:
+        message = json.loads(zlib.decompress(ws.receive_bytes(), -15))
+    assert message["full"] is True
+    assert "lat" not in message["fields"]
+    assert len(message["trains"]) > 0
 
 
 def test_service_day_says_which_timetable_runs_today(client) -> None:

@@ -1,5 +1,6 @@
 """The live snapshot's wire format."""
 
+import zlib
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -8,7 +9,16 @@ import pytest
 from app.schemas.train import TrainPositionUpdate
 from app.schemas.websocket import SnapshotTableMessage
 from app.services.live_cache import LiveTrainCache
-from app.services.live_wire import ROUNDING, SNAPSHOT_FIELDS, STATION_FIELDS, encode_snapshot
+from app.services.live_wire import (
+    FULL_FIELDS,
+    MOVING_FIELDS,
+    ROUNDING,
+    RUN_FIELDS,
+    SNAPSHOT_FIELDS,
+    STATION_FIELDS,
+    Snapshot,
+    encode_snapshot,
+)
 from app.services.position_processor import PositionProcessor
 from app.services.simulator.engine import TimetableTelemetrySource
 from app.services.timetable import load_timetable
@@ -76,3 +86,55 @@ def test_an_empty_network_encodes() -> None:
     assert message.trains == []
     assert message.stations == {}
     assert tuple(message.fields) == SNAPSHOT_FIELDS
+
+
+# -- the lean format (v2): full tables now and then, moving parts between --
+
+
+def inflate(payload: bytes) -> str:
+    return zlib.decompress(payload, -15).decode()
+
+
+def test_train_coordinates_stay_off_the_wire() -> None:
+    assert not {"lat", "lon", "heading_deg"} & set(FULL_FIELDS)
+    assert set(MOVING_FIELDS) < set(FULL_FIELDS)
+    assert "train_id" in MOVING_FIELDS
+    assert not RUN_FIELDS & set(MOVING_FIELDS)
+    assert set(FULL_FIELDS) == set(MOVING_FIELDS) | RUN_FIELDS
+
+
+def test_a_full_snapshot_carries_every_wire_field(evening_trains: list[TrainPositionUpdate]) -> None:
+    message = SnapshotTableMessage.model_validate_json(
+        Snapshot(WEDNESDAY_EVENING, evening_trains, full=True).payload("table")
+    )
+    assert message.full
+    assert tuple(message.fields) == FULL_FIELDS
+    assert len(message.trains) == len(evening_trains)
+
+
+def test_a_moving_snapshot_carries_only_what_changes(evening_trains: list[TrainPositionUpdate]) -> None:
+    message = SnapshotTableMessage.model_validate_json(
+        Snapshot(WEDNESDAY_EVENING, evening_trains, full=False).payload("table")
+    )
+    assert not message.full
+    assert tuple(message.fields) == MOVING_FIELDS
+    assert [row[0] for row in message.trains] == [t.train_id for t in evening_trains]
+
+
+def test_deflate_is_the_table_compressed(evening_trains: list[TrainPositionUpdate]) -> None:
+    snapshot = Snapshot(WEDNESDAY_EVENING, evening_trains, full=False)
+    compressed = snapshot.payload("deflate")
+    assert isinstance(compressed, bytes)
+    assert inflate(compressed) == snapshot.payload("table")
+    # What a phone receives per train per second, down from ~200 bytes.
+    assert len(compressed) / len(evening_trains) < 40
+
+
+def test_legacy_clients_get_the_original_table(evening_trains: list[TrainPositionUpdate]) -> None:
+    snapshot = Snapshot(WEDNESDAY_EVENING, evening_trains, full=False)
+    assert snapshot.payload("legacy") == encode_snapshot(WEDNESDAY_EVENING, evening_trains)
+
+
+def test_each_format_is_encoded_once(evening_trains: list[TrainPositionUpdate]) -> None:
+    snapshot = Snapshot(WEDNESDAY_EVENING, evening_trains, full=True)
+    assert snapshot.payload("deflate") is snapshot.payload("deflate")

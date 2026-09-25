@@ -1,7 +1,8 @@
-// Decodes `/ws/live` snapshots. The server sends every train as a row of
-// values under one list of field names, with station names listed once
-// (see backend/app/services/live_wire.py): a fifth of the size of plain
-// objects, which matters when a phone receives one every second.
+// Decodes `/ws/live` snapshots (see backend/app/services/live_wire.py). The
+// server sends every train as a row of values under one list of field
+// names, with station names listed once. A full snapshot carries every
+// field; the ticks between carry only what changes during a run
+// (positions, delays, ETAs), and arrive deflated in binary frames.
 
 import type { SnapshotCell, SnapshotTableMessage, StationRef, TrainPositionUpdate } from "./types";
 
@@ -22,9 +23,6 @@ const TRAIN_FIELDS = [
   "next_station",
   "direction_forward",
   "direction_label",
-  "lat",
-  "lon",
-  "heading_deg",
   "chainage_m",
   "speed_kmh",
   "delay_seconds",
@@ -39,7 +37,15 @@ type UndecodedField = Exclude<TrainField, (typeof TRAIN_FIELDS)[number]>;
 const everyFieldDecoded: [UndecodedField] extends [never] ? true : never = true;
 void everyFieldDecoded;
 
+const KNOWN_FIELDS: ReadonlySet<string> = new Set(TRAIN_FIELDS);
 const STATION_FIELDS: ReadonlySet<TrainField> = new Set(["origin", "destination", "current_station", "next_station"]);
+
+/** The fields a moving-parts tick carries for one train. */
+export type TrainMovement = Partial<TrainPositionUpdate> & Pick<TrainPositionUpdate, "train_id">;
+
+export type LiveSnapshot =
+  | { kind: "full"; trains: TrainPositionUpdate[] }
+  | { kind: "moving"; trains: TrainMovement[] };
 
 export class SnapshotDecodeError extends Error {
   constructor(message: string) {
@@ -60,19 +66,39 @@ function isSnapshotTable(value: unknown): value is SnapshotTableMessage {
   );
 }
 
+/** The text of a frame: binary frames are raw-deflated JSON. */
+export async function inflateMessage(data: string | ArrayBuffer): Promise<string> {
+  if (typeof data === "string") return data;
+  const stream = new Blob([data]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+  return new Response(stream).text();
+}
+
+/** Whether this browser can inflate the server's compressed frames. */
+export function canInflate(): boolean {
+  return typeof DecompressionStream !== "undefined";
+}
+
 /**
  * The trains in a `/ws/live` message, or `null` for a message that isn't a
  * snapshot. Throws SnapshotDecodeError when a snapshot doesn't match the
  * fields this client knows.
  */
-export function decodeSnapshot(message: unknown): TrainPositionUpdate[] | null {
+export function decodeSnapshot(message: unknown): LiveSnapshot | null {
   if (!isSnapshotTable(message)) return null;
+  const full = message.full !== false;
 
-  const columns = TRAIN_FIELDS.map((field) => {
-    const index = message.fields.indexOf(field);
-    if (index < 0) throw new SnapshotDecodeError(`no "${field}" column`);
-    return [field, index] as const;
-  });
+  const columns: (readonly [TrainField, number])[] = full
+    ? TRAIN_FIELDS.map((field) => {
+        const index = message.fields.indexOf(field);
+        if (index < 0) throw new SnapshotDecodeError(`no "${field}" column`);
+        return [field, index] as const;
+      })
+    : message.fields.flatMap((field, index) =>
+        KNOWN_FIELDS.has(field) ? [[field as TrainField, index] as const] : [],
+      );
+  if (!full && !columns.some(([field]) => field === "train_id")) {
+    throw new SnapshotDecodeError('no "train_id" column');
+  }
 
   const station = (cell: SnapshotCell): StationRef | null => {
     if (cell === null) return null;
@@ -82,7 +108,7 @@ export function decodeSnapshot(message: unknown): TrainPositionUpdate[] | null {
     return { code: cell, name };
   };
 
-  return message.trains.map((row) => {
+  const rows = message.trains.map((row) => {
     if (!Array.isArray(row) || row.length !== message.fields.length) {
       throw new SnapshotDecodeError("a row doesn't match the columns");
     }
@@ -91,6 +117,10 @@ export function decodeSnapshot(message: unknown): TrainPositionUpdate[] | null {
       const cell = row[index] ?? null;
       train[field] = STATION_FIELDS.has(field) ? station(cell) : cell;
     }
-    return train as unknown as TrainPositionUpdate;
+    return train;
   });
+
+  return full
+    ? { kind: "full", trains: rows as unknown as TrainPositionUpdate[] }
+    : { kind: "moving", trains: rows as unknown as TrainMovement[] };
 }

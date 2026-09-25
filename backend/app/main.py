@@ -26,7 +26,7 @@ from app.api.routes_trains import router as trains_router
 from app.api.ws import router as ws_router
 from app.config import get_settings
 from app.services.live_cache import LiveTrainCache
-from app.services.live_wire import encode_snapshot
+from app.services.live_wire import FULL_SNAPSHOT_EVERY_TICKS, Snapshot
 from app.services.position_processor import PositionProcessor
 from app.services.simulator.engine import TimetableTelemetrySource
 from app.services.timetable import load_timetable
@@ -43,6 +43,7 @@ async def _run_pipeline(app: FastAPI) -> None:
     cache: LiveTrainCache = app.state.live_cache
     manager: ConnectionManager = app.state.connection_manager
 
+    tick = 0
     async for fixes in source.stream():
         updates = processor.process_batch(fixes)
         cache.apply(updates)
@@ -53,7 +54,9 @@ async def _run_pipeline(app: FastAPI) -> None:
                 cache.remove(train_id)
                 processor.forget(train_id)
         if manager.active_connection_count:
-            manager.broadcast(encode_snapshot(time.time(), cache.snapshot()))
+            full = tick % FULL_SNAPSHOT_EVERY_TICKS == 0
+            manager.broadcast(Snapshot(time.time(), cache.snapshot(), full=full))
+        tick += 1
 
 
 @contextlib.asynccontextmanager

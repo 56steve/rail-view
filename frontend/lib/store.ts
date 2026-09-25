@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { type RouteLanes, routeLanes } from "./lanes";
+import type { LiveSnapshot } from "./liveWire";
 import { nextPair, SnapshotRhythm } from "./motion";
 import { TrackPath } from "./track";
 import type {
@@ -103,7 +104,7 @@ interface RailViewState {
 
   setNetwork: (network: NetworkOut) => void;
   setStations: (stations: StationIndexEntry[]) => void;
-  applySnapshot: (trains: TrainPositionUpdate[]) => void;
+  applySnapshot: (snapshot: LiveSnapshot) => void;
   setConnectionStatus: (status: ConnectionStatus) => void;
 
   openTab: (tab: TabName) => void;
@@ -181,13 +182,22 @@ export const useRailView = create<RailViewState>((set, get) => ({
 
   setStations: (stations) => set({ stations }),
 
-  applySnapshot: (trains) =>
+  applySnapshot: (snapshot) =>
     set((state) => {
       const now = performance.now();
       const glideMs = snapshotRhythm.arrived(now);
       const next: Record<string, TrainSnapshotPair> = {};
-      for (const train of trains) {
-        next[train.train_id] = nextPair(state.trainPairs[train.train_id], train, now, glideMs);
+      if (snapshot.kind === "full") {
+        for (const train of snapshot.trains) {
+          next[train.train_id] = nextPair(state.trainPairs[train.train_id], train, now, glideMs);
+        }
+      } else {
+        // Only trains already known move on; one that has just started
+        // appears with the next full snapshot.
+        for (const update of snapshot.trains) {
+          const previous = state.trainPairs[update.train_id];
+          if (previous) next[update.train_id] = nextPair(previous, { ...previous.to, ...update }, now, glideMs);
+        }
       }
       return { trainPairs: next };
     }),
