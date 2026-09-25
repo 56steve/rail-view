@@ -22,7 +22,6 @@ export function TrainDetailsScreen({ trainId }: { trainId: string }) {
   const [alertOpen, setAlertOpen] = useState(false);
   const saved = useRailView((s) => s.savedTrainIds.includes(trainId));
   const alerts = useRailView(useShallow((s) => s.alerts.filter((a) => a.trainId === trainId)));
-  const color = useRailView((s) => (detail ? s.lines[detail.position.line_code]?.color_hex : undefined)) ?? "#6E3FA3";
   const isDesktop = useIsDesktop();
   const now = useNowSeconds(10_000);
 
@@ -53,7 +52,7 @@ export function TrainDetailsScreen({ trainId }: { trainId: string }) {
   return (
     <div className="pointer-events-auto flex h-full flex-col overflow-y-auto bg-ink-950 md:rounded-3xl md:border md:hairline md:shadow-float">
       <div className="relative shrink-0">
-        {train ? <TrainPreview lineColor={color} ac={train.ac} /> : <div className="h-52 bg-ink-900" />}
+        {train ? <TrainPreview ac={train.ac} /> : <div className="h-52 bg-ink-900" />}
         <div className="absolute inset-x-0 top-0 flex justify-between px-4 pt-safe md:pt-4">
           <button type="button" aria-label="Back" onClick={navigateBack} className="glass flex h-10 w-10 items-center justify-center rounded-full">
             <ArrowLeft className="h-5 w-5" />

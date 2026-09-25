@@ -8,20 +8,26 @@ import { laneSample } from "@/lib/lanes";
 import { trainPose } from "@/lib/motion";
 import { navigate } from "@/lib/navigation";
 import { focusedTrainId, useRailView } from "@/lib/store";
+import { RAIL_TOP_Y } from "@/lib/trackDetail/profiles";
 import {
+  COACH,
   COACH_PITCH,
-  coachGeometry,
   coachGlyphGeometry,
   coachKindAt,
   coachMaterial,
   type CoachKind,
   type Livery,
 } from "./coachGeometry";
+import { rakeLivery, useEmuModel, type EmuModel } from "./emuModel";
+import { headlightResources } from "./headlightBeam";
 
 // Closer than this, a train is drawn as its true-scale rake following the
 // track's curves; farther, as a compact glyph sized to stay legible at
 // city scale (a 250m train is otherwise sub-pixel in the network view).
 const RAKE_LOD_DISTANCE_M = 2600;
+// Coaches closer than this to the camera are drawn in full detail; the
+// rest of the rake uses the simplified model.
+const FULL_DETAIL_DISTANCE_M = 140;
 // Glyph world-scale per metre of camera distance, tuned so the glyph
 // stays ~40px long on a typical viewport regardless of zoom. Width and
 // height are exaggerated further: at that size a true-proportioned coach
@@ -34,31 +40,41 @@ const TAP_MAX_TRAVEL_PX = 6;
 const STALE_TINT = new THREE.Color(0.38, 0.4, 0.44);
 const LIVE_TINT = new THREE.Color(1, 1, 1);
 
+const COACH_KINDS: readonly CoachKind[] = ["cab", "motor", "trailer"];
+
 export function Trains() {
   const ids = useRailView(useShallow((s) => Object.keys(s.trainPairs)));
+  const night = useRailView((s) => s.lighting.mode === "night");
+  const model = useEmuModel(night);
   return (
     <group>
       {ids.map((id) => (
-        <TrainView key={id} trainId={id} />
+        <TrainView key={id} trainId={id} model={model} night={night} />
       ))}
     </group>
   );
 }
 
-function TrainView({ trainId }: { trainId: string }) {
+/** Key of one of the rake's instanced meshes: a coach kind at a level of
+ * detail, one mesh per part of the model. */
+function rakeKey(kind: CoachKind, lod: number, part: number): string {
+  return `${kind}:${lod}:${part}`;
+}
+
+function TrainView({ trainId, model, night }: { trainId: string; model: EmuModel; night: boolean }) {
   const lineCode = useRailView((s) => s.trainPairs[trainId]?.to.line_code ?? null);
   const coachCount = useRailView((s) => s.trainPairs[trainId]?.to.coach_count ?? 12);
   const ac = useRailView((s) => s.trainPairs[trainId]?.to.ac ?? false);
   const color = useRailView((s) => (lineCode ? s.lines[lineCode]?.color_hex : undefined)) ?? "#8B93A3";
   const focused = useRailView((s) => focusedTrainId(s) === trainId);
   const dimmed = useRailView((s) => s.lineFilter !== null && s.lineFilter !== lineCode);
+  const lights = headlightResources(model.lamps);
 
   const livery = useMemo<Livery>(() => ({ band: color, ac }), [color, ac]);
-  const cab = useMemo(() => coachGeometry("cab", livery), [livery]);
-  const motor = useMemo(() => coachGeometry("motor", livery), [livery]);
-  const trailer = useMemo(() => coachGeometry("trailer", livery), [livery]);
+  // Up close, AC trains are the stainless AC rake, the rest the non-AC one.
+  const coaches = model.parts[rakeLivery(ac)];
   const glyphGeometry = useMemo(() => coachGlyphGeometry(livery), [livery]);
-  const material = coachMaterial();
+  const glyphMaterial = coachMaterial();
   // How many coaches of each kind this rake has (12 or 15 cars).
   const kindCounts = useMemo(() => {
     const counts: Record<CoachKind, number> = { cab: 0, motor: 0, trailer: 0 };
@@ -66,13 +82,15 @@ function TrainView({ trainId }: { trainId: string }) {
     return counts;
   }, [coachCount]);
 
-  const rakeCabs = useRef<THREE.InstancedMesh>(null);
-  const rakeMotors = useRef<THREE.InstancedMesh>(null);
-  const rakeTrailers = useRef<THREE.InstancedMesh>(null);
+  const rake = useRef(new Map<string, THREE.InstancedMesh>());
   const glyph = useRef<THREE.Group>(null);
   const glyphCabs = useRef<THREE.InstancedMesh>(null);
   const glow = useRef<THREE.Mesh>(null);
+  const headlights = useRef<THREE.Group>(null);
+  const beam = useRef<THREE.Mesh>(null);
   const scratch = useMemo(() => ({ object: new THREE.Object3D(), point: new THREE.Vector3() }), []);
+  // This frame's instance count per coach kind and level of detail.
+  const filledRef = useRef<Record<CoachKind, number[]>>({ cab: [0, 0], motor: [0, 0], trailer: [0, 0] });
 
   // Glyph layout never changes: two cab cars nose-to-tail, scaled as a group.
   useLayoutEffect(() => {
@@ -95,11 +113,9 @@ function TrainView({ trainId }: { trainId: string }) {
     const pair = state.trainPairs[trainId];
     const track = pair ? state.tracks[pair.to.route_code] : undefined;
     const lanes = pair ? state.lanes[pair.to.route_code] : undefined;
-    const cabs = rakeCabs.current;
-    const motors = rakeMotors.current;
-    const trailers = rakeTrailers.current;
     const group = glyph.current;
-    if (!pair || !track || !lanes || !cabs || !motors || !trailers || !group || !glyphCabs.current || !glow.current) {
+    const lamps = headlights.current;
+    if (!pair || !track || !lanes || !group || !glyphCabs.current || !glow.current || !lamps || !beam.current) {
       return;
     }
 
@@ -109,36 +125,43 @@ function TrainView({ trainId }: { trainId: string }) {
     const near = distance < RAKE_LOD_DISTANCE_M;
     const tint = pose.status === "stale" ? STALE_TINT : LIVE_TINT;
     const turn = pose.forward ? 0 : Math.PI;
+    const meshes = rake.current;
+    const filled = filledRef.current;
+    for (const kind of COACH_KINDS) filled[kind].fill(0);
 
-    const rake = { cab: cabs, motor: motors, trailer: trailers };
-    for (const mesh of Object.values(rake)) mesh.visible = near;
     group.visible = !near;
+    // At night the leading cab's headlights light the line ahead.
+    lamps.visible = night && near;
+    beam.current.material = pose.status === "stale" ? lights.staleBeamMaterial : lights.beamMaterial;
 
     if (near) {
       const dir = pose.forward ? 1 : -1;
       const frontChainage = pose.chainage + dir * ((coachCount - 1) / 2) * COACH_PITCH;
       const o = scratch.object;
-      const next: Record<CoachKind, number> = { cab: 0, motor: 0, trailer: 0 };
       for (let k = 0; k < coachCount; k++) {
         const s = laneSample(track, lanes, pose.forward, frontChainage - dir * k * COACH_PITCH);
         // The rear cab faces backwards, so its driving end is at the back.
         const isRearCab = k === coachCount - 1;
-        o.position.set(s.x, 0, s.z);
+        o.position.set(s.x, RAIL_TOP_Y, s.z);
         o.rotation.set(0, s.yaw + turn + (isRearCab ? Math.PI : 0), 0);
         o.updateMatrix();
+        if (k === 0) {
+          lamps.position.copy(o.position);
+          lamps.rotation.copy(o.rotation);
+        }
         const kind = coachKindAt(k, coachCount);
-        rake[kind].setMatrixAt(next[kind], o.matrix);
-        rake[kind].setColorAt(next[kind], tint);
-        next[kind] += 1;
-      }
-      for (const mesh of Object.values(rake)) {
-        mesh.instanceMatrix.needsUpdate = true;
-        if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-        mesh.computeBoundingSphere();
+        const lod = camera.position.distanceTo(o.position) < FULL_DETAIL_DISTANCE_M ? 0 : 1;
+        const slot = filled[kind][lod]!;
+        for (let part = 0; part < coaches[kind][lod]!.length; part++) {
+          const mesh = meshes.get(rakeKey(kind, lod, part));
+          mesh?.setMatrixAt(slot, o.matrix);
+          mesh?.setColorAt(slot, tint);
+        }
+        filled[kind][lod] = slot + 1;
       }
     } else {
       const scale = Math.max(1, distance * GLYPH_SCALE_PER_M);
-      group.position.set(centre.x, 0, centre.z);
+      group.position.set(centre.x, RAIL_TOP_Y, centre.z);
       group.rotation.set(0, centre.yaw + turn, 0);
       group.scale.set(scale * GLYPH_GIRTH, scale * GLYPH_GIRTH, scale);
       glyphCabs.current.setColorAt(0, tint);
@@ -149,6 +172,23 @@ function TrainView({ trainId }: { trainId: string }) {
       glow.current.scale.set(pulse / GLYPH_GIRTH, pulse, 1);
       (glow.current.material as THREE.MeshBasicMaterial).opacity =
         pose.status === "stale" ? 0.1 : focused ? 0.55 : 0.3;
+    }
+
+    for (const kind of COACH_KINDS) {
+      for (let lod = 0; lod < 2; lod++) {
+        const count = filled[kind][lod]!;
+        for (let part = 0; part < coaches[kind][lod]!.length; part++) {
+          const mesh = meshes.get(rakeKey(kind, lod, part));
+          if (!mesh) continue;
+          mesh.count = count;
+          mesh.visible = count > 0;
+          if (count === 0) continue;
+          mesh.instanceMatrix.needsUpdate = true;
+          if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+          // Taps hit-test against the bounding sphere first.
+          mesh.computeBoundingSphere();
+        }
+      }
     }
   });
 
@@ -168,34 +208,52 @@ function TrainView({ trainId }: { trainId: string }) {
 
   return (
     <group visible={!dimmed || focused}>
-      <instancedMesh
-        ref={rakeCabs}
-        args={[cab, material, 2]}
-        frustumCulled={false}
-        onClick={onSelect}
-        onPointerOver={onOver}
-        onPointerOut={onOut}
-      />
-      <instancedMesh
-        ref={rakeMotors}
-        args={[motor, material, Math.max(kindCounts.motor, 1)]}
-        count={kindCounts.motor}
-        frustumCulled={false}
-        onClick={onSelect}
-        onPointerOver={onOver}
-        onPointerOut={onOut}
-      />
-      <instancedMesh
-        ref={rakeTrailers}
-        args={[trailer, material, Math.max(kindCounts.trailer, 1)]}
-        count={kindCounts.trailer}
-        frustumCulled={false}
-        onClick={onSelect}
-        onPointerOver={onOver}
-        onPointerOut={onOut}
-      />
+      {COACH_KINDS.map((kind) =>
+        coaches[kind].map((parts, lod) =>
+          parts.map((part, index) => (
+            <instancedMesh
+              key={`${rakeKey(kind, lod, index)}:${kindCounts[kind]}:${rakeLivery(ac)}`}
+              ref={(mesh) => {
+                const key = rakeKey(kind, lod, index);
+                if (mesh) rake.current.set(key, mesh);
+                else rake.current.delete(key);
+              }}
+              args={[part.geometry, part.material, Math.max(kindCounts[kind], 1)]}
+              count={0}
+              frustumCulled={false}
+              onClick={onSelect}
+              onPointerOver={onOver}
+              onPointerOut={onOut}
+            />
+          )),
+        ),
+      )}
+      <group ref={headlights} visible={false}>
+        <mesh
+          ref={beam}
+          geometry={lights.beam}
+          material={lights.beamMaterial}
+          position={lights.beamOrigin}
+          rotation-x={-lights.beamDip}
+          frustumCulled={false}
+        />
+        <mesh geometry={lights.pool} material={lights.poolMaterial} frustumCulled={false} />
+        <mesh geometry={lights.lampGlow} material={lights.lampGlowMaterial} frustumCulled={false} />
+      </group>
       <group ref={glyph}>
-        <instancedMesh ref={glyphCabs} args={[glyphGeometry, material, 2]} frustumCulled={false} />
+        <instancedMesh ref={glyphCabs} args={[glyphGeometry, glyphMaterial, 2]} frustumCulled={false} />
+        {night && (
+          // A short, faint beam from the glyph's nose, so the direction of
+          // travel still reads at night from city height. Counter-scaled so
+          // the glyph's girth exaggeration doesn't fatten it.
+          <mesh
+            geometry={lights.beam}
+            material={lights.glyphBeamMaterial}
+            position={[0, 2.2, -COACH_PITCH / 2 - COACH.length / 2]}
+            scale={[1 / GLYPH_GIRTH, 1 / GLYPH_GIRTH, 0.55]}
+            frustumCulled={false}
+          />
+        )}
         <mesh ref={glow} rotation-x={-Math.PI / 2} position-y={0.5}>
           <circleGeometry args={[17, 32]} />
           <meshBasicMaterial
