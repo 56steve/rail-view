@@ -1,7 +1,9 @@
+import dataclasses
 import time
 
 import pytest
 
+from app.services.platforms import PlatformAssignment
 from app.services.position_processor import PositionProcessor
 from app.services.simulator.schedule import build_run_plan
 from app.services.telemetry import ActiveRun, RawFix
@@ -135,3 +137,20 @@ def test_context_is_kept_for_timelines_and_journeys() -> None:
     assert context is not None
     assert context.chainage_m == pytest.approx(3000, abs=1)
     assert "T-1" in processor.contexts()
+
+
+def test_next_platform_columns_come_from_the_next_stops_platform() -> None:
+    route, plan, provider, processor = make_processor()
+    target = dataclasses.replace(
+        plan.stops[2], platform=PlatformAssignment(numbers=("5", "6"), door="right", certain=False)
+    )
+    plan = dataclasses.replace(plan, stops=(*plan.stops[:2], target, *plan.stops[3:]))
+    provider.active_run = dataclasses.replace(provider.active_run, plan=plan)
+
+    a, b = plan.stops[1], plan.stops[2]
+    midpoint = a.station.chainage_m + (b.station.chainage_m - a.station.chainage_m) * 0.5
+    [update] = processor.process_batch([fix_at(route, midpoint, time.time())])
+
+    assert update.next_platform == "5,6"
+    assert update.next_platform_certain is False
+    assert update.next_platform_door == "right"

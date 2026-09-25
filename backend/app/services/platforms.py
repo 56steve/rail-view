@@ -18,12 +18,11 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Literal, get_args
 
-from app.schemas.train import PlatformOut
+from app.schemas.train import DoorSide, PlatformOut
 
 Corridor = Literal["slow", "fast", "any"]
 Direction = Literal["UP", "DN"]
 StopRole = Literal["originating", "through", "terminating"]
-DoorSide = Literal["left", "right", "both"]
 
 _CORRIDORS = frozenset(get_args(Corridor))
 _DIRECTIONS = frozenset(get_args(Direction))

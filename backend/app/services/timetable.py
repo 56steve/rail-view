@@ -13,20 +13,23 @@ Mumbai time; a train that runs past midnight has times of 1440 and more.
 from __future__ import annotations
 
 import json
+from collections import defaultdict
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 from functools import lru_cache
 from pathlib import Path
-from typing import Literal
+from typing import Literal, get_args
 from zoneinfo import ZoneInfo
 
 from app.data.mumbai_network import RouteSeed, load_routes
 from app.services.corridors import stop_corridors, stop_directions
 from app.services.holidays import runs_sunday_schedule
 from app.services.platforms import (
+    Corridor,
     Direction,
     PlatformAssignment,
+    StopRole,
     load_platform_table,
     resolve_platform,
 )
@@ -63,6 +66,9 @@ class TimetabledTrain:
     route_code: str
     # Along the route's station order (towards its last station).
     direction_forward: bool
+    # "UP" towards CSMT/Churchgate, "DN" away; reverses after
+    # direction_changes_at (Panvel - Wadala Road - Goregaon workings).
+    direction: Direction
     # Passes at least one station of its route between its first and last
     # stop without calling there.
     fast: bool
@@ -72,9 +78,6 @@ class TimetabledTrain:
     days: Days
     ladies_special: bool
     stops: tuple[TimetableStop, ...]
-    # "UP" towards CSMT/Churchgate, "DN" away; reverses after
-    # direction_changes_at (Panvel - Wadala Road - Goregaon workings).
-    direction: Direction = "DN"
     direction_changes_at: str | None = None
 
     @property
@@ -134,6 +137,18 @@ def _skips_a_station(route: RouteSeed, stop_names: list[str]) -> bool:
     return abs(positions[-1] - positions[0]) + 1 > len(positions)
 
 
+def _single_pair_by_line(single_pair: frozenset[tuple[str, str]]) -> dict[str, frozenset[str]]:
+    """`single_pair` grouped by line, computed once for the whole
+    timetable rather than once per train."""
+    grouped: dict[str, set[str]] = defaultdict(set)
+    for line, name in single_pair:
+        grouped[line].add(name)
+    return {line: frozenset(names) for line, names in grouped.items()}
+
+
+_VALID_DIRECTIONS = frozenset(get_args(Direction))
+
+
 @lru_cache
 def load_timetable(path: Path = TIMETABLE_JSON) -> Timetable:
     try:
@@ -143,12 +158,32 @@ def load_timetable(path: Path = TIMETABLE_JSON) -> Timetable:
 
     routes = list(load_routes().values())
     platforms = load_platform_table()
+    single_pair_by_line = _single_pair_by_line(platforms.single_pair)
+    # (line, station, corridor, direction, role) -> resolved platform.
+    # ~51,000 stops in the real timetable resolve to a much smaller set of
+    # distinct keys, so caching here turns load_timetable from O(stops)
+    # platform resolutions into roughly O(distinct keys).
+    platform_cache: dict[tuple[str, str, Corridor, Direction, StopRole], PlatformAssignment | None] = {}
+
+    def resolve_cached(
+        line_code: str, station: str, corridor: Corridor, direction: Direction, role: StopRole
+    ) -> PlatformAssignment | None:
+        key = (line_code, station, corridor, direction, role)
+        if key not in platform_cache:
+            platform_cache[key] = resolve_platform(
+                platforms.entries(line_code, station), corridor=corridor, direction=direction, role=role
+            )
+        return platform_cache[key]
+
     trains: list[TimetabledTrain] = []
     unplaced: list[str] = []
     for entry in raw["trains"]:
         line_code = LINE_CODES.get(entry["line"])
         if line_code is None:
             raise TimetableError(f"train {entry['number']}: unknown line {entry['line']!r}")
+        direction = entry.get("direction")
+        if direction not in _VALID_DIRECTIONS:
+            raise TimetableError(f"train {entry['number']}: invalid direction {direction!r}")
         names = [stop[0] for stop in entry["stops"]]
         fitted = _fit(names, line_code, routes)
         if fitted is None:
@@ -158,16 +193,20 @@ def load_timetable(path: Path = TIMETABLE_JSON) -> Timetable:
 
         route_names = [station.name for station in route.stations]
         fast_halts = {station.name for station in route.stations if station.fast_halt}
-        single_pair = {name for line, name in platforms.single_pair if line == line_code}
-        corridors = stop_corridors(route_names, fast_halts, names, single_pair)
-        directions = stop_directions(entry["direction"], entry["direction_changes_at"], names)
+        single_pair = single_pair_by_line.get(line_code, frozenset())
+        try:
+            corridors = stop_corridors(route_names, fast_halts, names, single_pair)
+            directions = stop_directions(direction, entry["direction_changes_at"], names)
+        except ValueError as exc:
+            raise TimetableError(f"train {entry['number']}: {exc}") from exc
         last = len(names) - 1
         stop_platforms = [
-            resolve_platform(
-                platforms.entries(line_code, name),
-                corridor=corridors[i],
-                direction=directions[i],
-                role="originating" if i == 0 else "terminating" if i == last else "through",
+            resolve_cached(
+                line_code,
+                name,
+                corridors[i],
+                directions[i],
+                "originating" if i == 0 else "terminating" if i == last else "through",
             )
             for i, name in enumerate(names)
         ]
@@ -179,13 +218,13 @@ def load_timetable(path: Path = TIMETABLE_JSON) -> Timetable:
                 line_code=line_code,
                 route_code=route.code,
                 direction_forward=forward,
+                direction=direction,
                 fast=_skips_a_station(route, names),
                 ac=entry["ac"],
                 non_ac_at_weekends=entry["non_ac_at_weekends"],
                 cars=entry["cars"],
                 days=entry["days"],
                 ladies_special=entry["ladies_special"],
-                direction=entry["direction"],
                 direction_changes_at=entry["direction_changes_at"],
                 stops=tuple(
                     TimetableStop(

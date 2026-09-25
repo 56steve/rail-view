@@ -1,7 +1,13 @@
+from datetime import date
+
 import pytest
 
-from app.services.platforms import PlatformAssignment
+from app.services.position_processor import TrainContext
+from app.services.simulator.schedule import timetable_run_plan
+from app.services.telemetry import ActiveRun
 from app.services.timeline import build_timeline
+from app.services.timetable import load_timetable
+from app.services.track_matching import get_route
 
 
 def test_states_split_around_the_trains_position(network) -> None:
@@ -41,12 +47,27 @@ def test_timeline_follows_travel_order_for_reverse_runs(network) -> None:
     assert scheduled == sorted(scheduled)
 
 
-def test_timeline_carries_each_stops_platform(network) -> None:
-    network.place("T1", "WR-VR", "SLOW", forward=True, at_fraction=0.3)
-    context = network.processor.context("T1")
-    stop = context.run.plan.stops[2]
-    object.__setattr__(stop, "platform", PlatformAssignment(numbers=("3",), door="left", certain=True))
+def test_timeline_carries_each_stops_platform() -> None:
+    # A real train (Panvel -> Goregaon) rather than a synthetic plan, so
+    # its stops carry the platforms load_timetable actually resolved.
+    train = load_timetable().by_number()["98901"]
+    route = get_route(train.route_code)
+    plan = timetable_run_plan(train, route, date(2026, 9, 23))
+    context = TrainContext(
+        run=ActiveRun(plan=plan, started_at_epoch=0.0),
+        route=route,
+        chainage_m=plan.origin.chainage_m,
+        delay_s=0.0,
+        current_stop=None,
+        next_stop=plan.stops[0],
+        updated_at_epoch=0.0,
+    )
     timeline = build_timeline(context)
-    assert timeline[2].platform is not None
-    assert timeline[2].platform.numbers == ["3"]
-    assert timeline[2].platform.door == "left"
+    for expected, actual in zip(train.stops, timeline, strict=True):
+        if expected.platform is None:
+            assert actual.platform is None
+        else:
+            assert actual.platform is not None
+            assert actual.platform.numbers == list(expected.platform.numbers)
+            assert actual.platform.door == expected.platform.door
+            assert actual.platform.certain == expected.platform.certain

@@ -3,10 +3,9 @@ the way test_network_data.py guards network.json.
 
 Coverage is deliberately incomplete (94 curated/derived stations, not
 every line-station), so the thresholds below are regression guards set a
-few points under what the real data actually measures, not the higher
-bars a fully-curated table might reach. See the measurements printed by
-`test_measured_coverage_is_reported` (run with `-s`) for the exact
-figures this was tuned against.
+few points under what the real data actually measures (see the comment
+above each threshold), not the higher bars a fully-curated table might
+reach.
 """
 
 from app.services.platforms import load_platform_table
@@ -66,8 +65,10 @@ def test_most_stops_have_a_platform() -> None:
 
 def test_through_stops_are_mostly_certain() -> None:
     timetable = load_timetable()
-    through = [s for t in timetable.trains for s in t.stops[1:-1] if s.platform is not None]
-    certain = sum(1 for s in through if s.platform.certain)
+    # Narrowed to the platforms themselves (not None) so the type checker
+    # knows `.certain` is always there below.
+    through = [s.platform for t in timetable.trains for s in t.stops[1:-1] if s.platform is not None]
+    certain = sum(1 for platform in through if platform.certain)
     assert certain / len(through) >= MIN_THROUGH_STOPS_CERTAIN
 
 

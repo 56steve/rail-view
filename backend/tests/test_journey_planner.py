@@ -142,9 +142,18 @@ def test_unknown_station_raises() -> None:
         plan("atlantis", "dadar", WEDNESDAY_0830)
 
 
-def test_options_carry_board_and_alight_platforms() -> None:
+def test_options_board_and_alight_on_the_exact_dn_platforms() -> None:
+    """Dadar -> Andheri is WR, DN direction throughout. Slow trains use
+    Dadar's slow DN platform (1) and Andheri's slow DN platform (3); fast
+    trains use Dadar's curated fast DN platforms (3 and 5, ambiguous - see
+    test_platform_data.py) and Andheri's fast DN platform (6)."""
     result = plan("dadar", "andheri", WEDNESDAY_0830)
-    assert result.options
-    for option in result.options:
-        assert option.board_platform is not None and option.board_platform.numbers
-        assert option.alight_platform is not None and option.alight_platform.numbers
+    slow = [o for o in result.options if o.train_type == "SLOW"]
+    fast = [o for o in result.options if o.train_type == "FAST"]
+    assert slow and fast
+    for option in slow:
+        assert option.board_platform is not None and option.board_platform.numbers == ["1"]
+        assert option.alight_platform is not None and option.alight_platform.numbers == ["3"]
+    for option in fast:
+        assert option.board_platform is not None and option.board_platform.numbers == ["3", "5"]
+        assert option.alight_platform is not None and option.alight_platform.numbers == ["6"]
