@@ -97,6 +97,10 @@ export interface TrainPositionUpdate {
   destination_eta_seconds: number;
   status: TrainStatus;
   last_updated_epoch: number;
+  /** The next stop's platform numbers, comma-separated ("3", "5,6,7"). */
+  next_platform: string | null;
+  next_platform_certain: boolean;
+  next_platform_door: DoorSide | null;
 }
 
 export type StopState = "departed" | "at_platform" | "next" | "upcoming";
