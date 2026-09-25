@@ -28,6 +28,36 @@ The map has a **Day** mode in real-world colours and a **Night** mode.
 **Auto**, the default, switches at the actual sunrise and sunset over
 Mumbai, and by day the scene is lit from where the sun really is.
 
+## Screenshots
+
+**The whole network, live.** Every train the timetable has running right
+now, on the real track geometry of Mumbai and Navi Mumbai.
+
+![The RailView network map by day, with live trains on the Western, Central, Harbour and Trans-Harbour lines](docs/screenshots/network-map.jpg)
+
+**Up close, the real trains.** Each local is a 12-coach model of Mumbai's
+ICF rakes, in its own livery: a stainless, blue-and-red AC local (CSMT →
+Panvel) passing a non-AC rake near Cotton Green, on individually modelled
+tracks.
+
+![An AC local and a non-AC local passing near Cotton Green station](docs/screenshots/ac-and-non-ac.jpg)
+
+**Following a train at night.** The camera rides behind the train with
+its speed, the next station and its ETA; at night the leading cab lights
+the line ahead.
+
+![Following a Borivali to Churchgate slow local at night, approaching Jogeshwari](docs/screenshots/night-follow.jpg)
+
+**Every stop, and the next train home.** A train's timeline with the
+official times and its live delay, and direct trains between any two
+stations, fastest first.
+
+<p>
+  <img src="docs/screenshots/train-details.jpg" alt="Train details for an AC slow local from Virar to Bandra, with its 3D model and stop timeline" width="360">
+  &nbsp;
+  <img src="docs/screenshots/journey-planner.jpg" alt="Journey planner showing fast and slow locals from Dadar to Andheri" width="360">
+</p>
+
 ## How it works
 
 ```
@@ -42,10 +72,11 @@ Position processor   snaps each fix onto the train's route (GPS-to-track
 Live train cache     last-known state per train; marks a train "stale"
         |            after 15 s of silence instead of inventing positions
         v
-WebSocket hub        one snapshot per tick to every client (/ws/live), as a
-        |            compact table (~33 KB for ~180 trains); a client on a
-        |            slow connection skips snapshots instead of delaying
-        |            everyone else
+WebSocket hub        one snapshot per tick to every client (/ws/live): a
+        |            deflated table, full every 10 s and only what moves in
+        |            between (~5 KB/s for ~200 trains); a client on a slow
+        |            connection skips snapshots instead of delaying everyone
+        |            else, and the app drops the feed while it's hidden
         v
 Next.js client       glides each train along the track over the measured
                      time between snapshots and renders it on the track
@@ -66,61 +97,6 @@ Next.js client       glides each train along the track over the measured
   build measures, every 10 m along each route, the sideways offset to
   each direction's real track. The client draws trains there, and at a
   terminus both directions share the platform track before crossing over.
-
-### Backend (`backend/`, FastAPI)
-
-- `scripts/network_definitions.py`: the curated part of the network:
-  which stations each route calls at, their order and fast halts.
-- `scripts/build_osm_data.py`: builds everything else from OpenStreetMap
-  through the Overpass API. It snaps stations onto the rail graph,
-  map-matches each route through that graph, and collects every running
-  track and platform near the routes. It also derives each direction's
-  running lane, and bakes buildings, land cover (pre-triangulated), roads
-  and land into compact files for the client. Overpass responses are
-  cached in `backend/.osm-cache/` (git-ignored).
-- `app/services/track_matching.py`: GPS fix → chainage on a route.
-- `app/services/track_filter.py`: constant-velocity Kalman filter over
-  chainage.
-- `app/services/timetable.py`: the imported official timetable, each
-  train fitted onto the route and direction it runs, with the days it
-  runs (the Sunday schedule, not-on-Sundays and weekday-only trains).
-- `app/services/holidays.py`: the holidays that run the Sunday timetable,
-  from Central Railway's list (`app/data/sunday_schedule_holidays.json`).
-  Six are fixed dates; the rest move with the calendar and are dated each
-  year from the Government of Maharashtra's holiday list. Add a new
-  year's dates when Maharashtra publishes them each December; until then
-  only the fixed dates apply and the backend logs a warning.
-- `app/services/simulator/`: the simulated feed. Every train due now runs
-  on the shared speed profile at per-leg speeds solved from the published
-  times. Dwell times vary and late trains claw time back within line
-  speed, so delays emerge instead of being made up. GPS fixes get jitter
-  and dropouts, and finished trains leave the map.
-- `app/services/position_processor.py`: the pipeline's middle stage.
-- `app/services/journey_planner.py`: direct trains between two stations
-  over the whole timetable, including trains that haven't started yet,
-  with running trains' current delay applied. Or where to change (another
-  line, or another branch).
-- `app/services/telemetry.py`: the `TelemetrySource` / `ScheduleProvider`
-  protocols a real feed implements.
-- `app/models/` + `alembic/`: the PostGIS schema for the static network
-  and timetables (`scripts/seed_db.py` loads it). The live path runs in
-  memory and doesn't need a database.
-
-### Frontend (`frontend/`, Next.js + React Three Fiber)
-
-- `lib/geo.ts` mirrors the backend projection exactly.
-- `lib/track.ts` addresses a route by chainage, and `lib/lanes.ts` offsets
-  a chainage onto the direction's running track.
-- `lib/motion.ts` interpolates between snapshots along the track.
-- `lib/sun.ts` computes the sun's position over Mumbai (NOAA equations)
-  for Auto appearance and day lighting.
-- `components/three/` holds the scene: ground and coastline, land cover
-  and roads, building tiles, individual tracks and platforms, route
-  lines, and trains. Trains are a true-scale 12-coach rake up close and a
-  legible glyph from far away. The camera rig handles network framing,
-  following a train and 2D.
-- `components/screens/` holds the app screens: Explore, Follow, Train
-  details, Plan journey, Trains, Saved, More.
 
 ## Running locally
 
