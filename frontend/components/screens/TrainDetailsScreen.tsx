@@ -197,7 +197,8 @@ function Timeline({ stops, now }: { stops: StopTime[]; now: number }) {
             ? formatClock(stop.observed_arrival_epoch)
             : `~${formatClock(stop.scheduled_epoch)}`;
         } else if (stop.state === "at_platform") {
-          detail = stop.platform?.certain ? `At ${platformLabel(stop.platform)}` : "At platform";
+          // The row's chip and the header badge already name the platform.
+          detail = "At platform";
         } else if (stop.state === "next") {
           const minutes = minutesUntil(stop.expected_epoch, now);
           detail = minutes === 0 ? "Arriving now" : `Arriving in ${minutes} min`;
