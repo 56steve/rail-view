@@ -3,7 +3,7 @@ from typing import Literal
 from pydantic import BaseModel
 
 from app.schemas.station import StationIndexEntry
-from app.schemas.train import TrainType
+from app.schemas.train import PlatformOut, TrainType
 
 JourneySort = Literal["fastest", "soonest"]
 
@@ -26,6 +26,8 @@ class JourneyOption(BaseModel):
     duration_seconds: float
     delay_seconds: float
     intermediate_stops: int
+    board_platform: PlatformOut | None = None
+    alight_platform: PlatformOut | None = None
 
 
 class JourneyPlan(BaseModel):

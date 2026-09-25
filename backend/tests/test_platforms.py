@@ -56,9 +56,9 @@ def test_role_specific_entries_win() -> None:
     assert (p.numbers, p.door, p.certain) == (("8", "9"), None, False)
 
 
-def test_missing_role_falls_back_to_through() -> None:
+def test_missing_role_falls_back_to_through_but_not_certainly() -> None:
     p = resolve_platform(ANDHERI_WR, corridor="fast", direction="DN", role="terminating")
-    assert p is not None and p.numbers == ("6",) and p.certain
+    assert p is not None and p.numbers == ("6",) and not p.certain
 
 
 def test_other_corridor_is_a_fallback_and_never_certain() -> None:
@@ -164,3 +164,26 @@ def test_load_platform_table_string_numbers_raises(tmp_path: Path) -> None:
     path.write_text(json.dumps(bad))
     with pytest.raises(PlatformDataError):
         load_platform_table(path)
+
+
+def test_load_platform_table_keeps_a_withheld_station_with_no_platforms(tmp_path: Path) -> None:
+    table_json = json.loads(json.dumps(GOOD_TABLE))
+    table_json["stations"].append({"line_code": "HR", "station": "Sanpada", "platforms": []})
+    path = tmp_path / "platforms.json"
+    path.write_text(json.dumps(table_json))
+    table = load_platform_table(path)
+    assert ("HR", "Sanpada") in table.stations
+    assert table.entries("HR", "Sanpada") == ()
+
+
+def test_a_train_ending_here_is_never_certain_from_through_platforms() -> None:
+    # Andheri has no terminating entries: a slow train ending there falls
+    # back to the through platform, but it may well use the bay instead.
+    p = resolve_platform(ANDHERI_WR, corridor="slow", direction="DN", role="terminating")
+    assert p is not None
+    assert (p.numbers, p.certain) == (("3",), False)
+
+
+def test_a_through_stop_on_its_own_platform_stays_certain() -> None:
+    p = resolve_platform(ANDHERI_WR, corridor="fast", direction="UP", role="through")
+    assert p is not None and p.certain

@@ -1,16 +1,23 @@
-"""Derive each station's platforms, and which side the doors open, from
-OpenStreetMap.
+"""Build the station platform table: which platform each train calls
+at, and which side its doors open.
 
-    uv run python scripts/build_platforms.py [--refresh]
+    uv run python scripts/build_platforms.py [--derive-only] [--refresh]
 
 For every (line, station) in network.json this pairs the station's
-numbered platforms with the tracks beside them, works out which pair of
-tracks (slow / fast, or "any" where the line has one pair) and which
-direction (UP / DN) each track serves, and on which side of the train the
-platform lies. Numbers come from `ref`s on stop positions (a node on one
-track) and on platform areas; corridors from track names; directions from
-left-hand running. Writes backend/data/platforms/derived.json (a build
-intermediate, not committed) and prints a coverage report.
+numbered platforms in OpenStreetMap with the tracks beside them, works out
+which pair of tracks (slow / fast, or "any" where the line has one pair)
+and which direction (UP / DN) each track serves, and on which side of the
+train the platform lies. Numbers come from `ref`s on stop positions (a
+node on one track) and on platform areas; corridors from track names;
+directions from left-hand running. That derivation is written to
+backend/data/platforms/derived.json (a build intermediate, not committed).
+
+Stations in backend/data/platforms/curated.json, each citing its source,
+then replace the derived ones wholesale, and the result is written to
+backend/app/data/generated/platforms.json (committed) after checking it
+loads. The script prints the coverage per line and station, where OSM and
+the curated data disagree, and what the derivation couldn't place.
+--derive-only stops after derived.json.
 
 Reads the Overpass cache written by build_osm_data.py; the only query of
 its own is the stop positions (cache key `stop_positions`).
@@ -25,20 +32,25 @@ import json
 import math
 import sys
 from collections import defaultdict
-from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Collection, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal, TypedDict
 
 from build_osm_data import (
     BACKEND_DIR,
     NETWORK_OUT,
+    PLATFORMS_QUERY,
+    RAILS_QUERY,
     BuildError,
     bbox_clause,
+    keep_rail_way,
     overpass,
     platform_polygons,
 )
 from platform_geometry import (
+    PARALLEL_MAX_ANGLE_DEG,
     SAME_TRACK_M,
     Door,
     LineCode,
@@ -55,20 +67,34 @@ from platform_geometry import (
     place_by_numbering,
     platform_numbers,
     platform_sort_key,
+    probe_offset,
     side_of,
     track_corridor,
     track_line,
 )
 from shapely import STRtree
 from shapely.geometry import LineString, Point, Polygon
-from shapely.ops import substring
+from shapely.ops import nearest_points, substring
 
 from app.services.geometry import to_local
+from app.services.platforms import (
+    PLATFORMS_JSON,
+    Corridor,
+    Direction,
+    DoorSide,
+    PlatformDataError,
+    StopRole,
+    load_platform_table,
+)
+from app.services.timetable import LINE_CODES, TIMETABLE_JSON
 
-DERIVED_OUT = BACKEND_DIR / "data" / "platforms" / "derived.json"
+PLATFORMS_DIR = BACKEND_DIR / "data" / "platforms"
+DERIVED_OUT = PLATFORMS_DIR / "derived.json"
+CURATED_IN = PLATFORMS_DIR / "curated.json"
+ATTRIBUTION = (
+    "© OpenStreetMap contributors (ODbL); curated entries cite their sources in backend/data/platforms/curated.json"
+)
 
-Direction = Literal["UP", "DN"]
-Corridor = Literal["slow", "fast", "any"]
 Point2 = tuple[float, float]
 
 # A route's stations run DN (away from CSMT / Churchgate / Thane) except
@@ -84,7 +110,6 @@ SHARED_TRACK_LINES: dict[str, tuple[LineCode, ...]] = {"THR": ("THR", "HR")}
 
 TRACK_RADIUS_M = 250.0
 PLATFORM_RADIUS_M = 400.0
-PARALLEL_MAX_ANGLE_DEG = 30.0
 TANGENT_HALF_SPAN_M = 20.0
 # Offsets across the station are measured from the route this far either side.
 ROUTE_WINDOW_M = 800.0
@@ -95,14 +120,31 @@ TRACE_MAX_TURN_DEG = 25.0
 STOP_PLATFORM_RADIUS_M = 60.0
 EXCLUDED_TRACK_SERVICES = frozenset({"crossover"})
 EXCLUDED_PLATFORM_MODES = ("subway", "monorail", "light_rail")
+STOP_POSITIONS_QUERY = (
+    f'[out:json][timeout:90];(node["railway"="stop"]{bbox_clause()};'
+    f'node["public_transport"="stop_position"]["train"="yes"]{bbox_clause()};);out body;'
+)
+
+# How a track's corridor was found. Only a name on the track itself or on
+# its partner in the pair, or a station with nothing but the one pair, is
+# good enough for a certain platform; following the track to a named way
+# elsewhere, or taking the opposite of the neighbouring pair, is not.
+CorridorEvidence = Literal["own_name", "partner_name", "only_pair", "traced", "opposite"]
+STRONG_CORRIDOR_EVIDENCE: frozenset[CorridorEvidence] = frozenset({"own_name", "partner_name", "only_pair"})
+# How a platform number was put on its track. Only a stop position on the
+# track, or a platform with one number beside one track, is good enough
+# for a certain platform; the numbering order and "the only free track"
+# are inferences.
+Placement = Literal["stop", "single", "numbering", "free"]
+STRONG_PLACEMENTS: frozenset[Placement] = frozenset({"stop", "single"})
 
 
 class PlatformJson(TypedDict):
     numbers: list[str]
     corridor: Corridor
     direction: Direction
-    role: Literal["originating", "through", "terminating"]
-    door: Door | None
+    role: StopRole
+    door: DoorSide | None
     certain: bool
 
 
@@ -171,12 +213,19 @@ def _platform_ref(tags: Mapping[str, str]) -> str | None:
 
 
 def load_osm(refresh: bool) -> OsmData:
-    """Every rail way, platform and stop position in the Overpass cache."""
-    rails = overpass(
-        f'[out:json][timeout:180];way["railway"="rail"]{bbox_clause()};out body;>;out skel qt;',
-        "rails",
-        refresh,
+    """Every rail way, platform and stop position, from the Overpass cache
+    (fetching the stop positions the first time)."""
+    return parse_osm(
+        overpass(RAILS_QUERY, "rails", refresh),
+        overpass(PLATFORMS_QUERY, "platforms", refresh),
+        overpass(STOP_POSITIONS_QUERY, "stop_positions", refresh),
     )
+
+
+def parse_osm(rails: dict, platform_data: dict, stop_data: dict) -> OsmData:
+    """The rail ways, platform areas and numbered stop positions in three
+    Overpass responses, in local metres. Ways too short to have a
+    direction are skipped."""
     node_coords = {e["id"]: _local(e["lat"], e["lon"]) for e in rails["elements"] if e["type"] == "node"}
     ways: list[OsmWay] = []
     for element in rails["elements"]:
@@ -185,18 +234,15 @@ def load_osm(refresh: bool) -> OsmData:
         nodes = tuple(n for n in element["nodes"] if n in node_coords)
         if len(nodes) < 2:
             continue
-        ways.append(OsmWay(element["id"], element.get("tags", {}), nodes, LineString([node_coords[n] for n in nodes])))
+        line = LineString([node_coords[n] for n in nodes])
+        if line.length == 0:
+            continue
+        ways.append(OsmWay(element["id"], element.get("tags", {}), nodes, line))
     node_ways: dict[int, list[int]] = defaultdict(list)
     for index, way in enumerate(ways):
         for node in dict.fromkeys(way.nodes):
             node_ways[node].append(index)
 
-    platform_data = overpass(
-        f'[out:json][timeout:120];(way["railway"="platform"]{bbox_clause()};'
-        f'relation["railway"="platform"]{bbox_clause()};);out tags geom;',
-        "platforms",
-        refresh,
-    )
     platforms = [
         OsmPlatform(f"{element['type']}/{element['id']}", platform_numbers(_platform_ref(tags)), polygon)
         for element in platform_data["elements"]
@@ -204,13 +250,6 @@ def load_osm(refresh: bool) -> OsmData:
         for polygon in platform_polygons(element)
         if not polygon.is_empty
     ]
-
-    stop_data = overpass(
-        f'[out:json][timeout:90];(node["railway"="stop"]{bbox_clause()};'
-        f'node["public_transport"="stop_position"]["train"="yes"]{bbox_clause()};);out body;',
-        "stop_positions",
-        refresh,
-    )
     stops = [
         OsmStop(element["id"], platform_numbers(_platform_ref(element.get("tags", {}))), _local(element["lat"], element["lon"]))
         for element in stop_data["elements"]
@@ -241,20 +280,16 @@ class StationSite:
     forward_direction: Direction  # the direction of travel along `tangent`
     fast_halt: bool
     single_pair: bool  # the line has one pair of tracks here
+    terminus: bool  # trains of the line start or end here
 
 
-def _unit(dx: float, dy: float) -> Point2:
-    length = math.hypot(dx, dy)
-    if length == 0:
-        raise BuildError("zero-length direction")
-    return (dx / length, dy / length)
-
-
-def _tangent(line: LineString, point: Point2, half_span: float) -> Point2:
+def _tangent(line: LineString, point: Point2, half_span: float) -> Point2 | None:
+    """The unit direction of `line` near `point`; None where it has none."""
     at = line.project(Point(point))
     a = line.interpolate(max(at - half_span, 0.0))
     b = line.interpolate(min(at + half_span, line.length))
-    return _unit(b.x - a.x, b.y - a.y)
+    length = math.hypot(b.x - a.x, b.y - a.y)
+    return ((b.x - a.x) / length, (b.y - a.y) / length) if length else None
 
 
 def _route_near(track: LineString, point: Point2) -> LineString:
@@ -273,6 +308,8 @@ def forward_direction_at(route_code: str, station_names: Sequence[str], index: i
     change = ROUTE_DIRECTION_CHANGES_AT.get(route_code)
     if change is None:
         return base
+    if change not in station_names:
+        raise BuildError(f"{route_code} reverses at {change}, which isn't one of its stations")
     change_index = station_names.index(change)
     if index == change_index:
         return None
@@ -296,9 +333,28 @@ def single_pair_stations(routes: Sequence[Mapping[str, object]]) -> set[tuple[st
     return found
 
 
-def station_sites(network: Mapping[str, object]) -> list[StationSite]:
+def timetable_termini(timetable: Mapping[str, object]) -> set[tuple[str, str]]:
+    """(line, station) pairs where a timetabled train of the line starts or
+    ends - intermediate termini like Borivali and Thane included."""
+    trains = timetable.get("trains")
+    if not isinstance(trains, list):
+        raise BuildError("timetable.json: trains must be a list")
+    termini: set[tuple[str, str]] = set()
+    for train in trains:
+        line_code = LINE_CODES.get(train["line"])
+        if line_code is None:
+            raise BuildError(f"timetable.json: train {train['number']} is on unknown line {train['line']!r}")
+        stops = train["stops"]
+        if stops:
+            termini.update(((line_code, stops[0][0]), (line_code, stops[-1][0])))
+    return termini
+
+
+def station_sites(network: Mapping[str, object], termini: Collection[tuple[str, str]]) -> list[StationSite]:
     """One site per (line, station), in line order then route order, taken
-    from the first route that passes the station without reversing."""
+    from the first route that passes the station without reversing. A
+    station is a terminus if a route ends there or it is in `termini`
+    (where timetabled trains start or end)."""
     routes = network["routes"]
     if not isinstance(routes, list):
         raise BuildError("network.json: routes must be a list")
@@ -306,9 +362,11 @@ def station_sites(network: Mapping[str, object]) -> list[StationSite]:
     if not isinstance(lines, list):
         raise BuildError("network.json: lines must be a list")
     fast_halts: dict[tuple[str, str], bool] = defaultdict(bool)
+    all_termini = set(termini)
     for route in routes:
         for station in route["stations"]:
             fast_halts[(route["line_code"], station["name"])] |= bool(station["fast_halt"])
+        all_termini.update((route["line_code"], route["stations"][end]["name"]) for end in (0, -1))
 
     single_pairs = single_pair_stations(routes)
     sites: dict[tuple[str, str], StationSite] = {}
@@ -322,16 +380,20 @@ def station_sites(network: Mapping[str, object]) -> list[StationSite]:
                 if key in sites or direction is None:
                     continue
                 point = _local(station["lat"], station["lon"])
+                tangent = _tangent(track, point, TANGENT_HALF_SPAN_M)
+                if tangent is None:
+                    raise BuildError(f"{route['code']}: no track direction at {station['name']}")
                 sites[key] = StationSite(
                     line_code=key[0],
                     station=key[1],
                     route_code=route["code"],
                     point=point,
-                    tangent=_tangent(track, point, TANGENT_HALF_SPAN_M),
+                    tangent=tangent,
                     route=_route_near(track, point),
                     forward_direction=direction,
                     fast_halt=fast_halts[key],
                     single_pair=key in single_pairs,
+                    terminus=key in all_termini,
                 )
     return list(sites.values())
 
@@ -345,18 +407,32 @@ class Track:
     """One physical track at a station (possibly drawn as several ways)."""
 
     index: int
-    offset: float  # across the station, positive to the left of the route's forward direction
+    # Across the station, positive to the left of the route's forward
+    # direction: where the track crosses a line square across the route at
+    # the station, or (if it ends before that) where it passes nearest.
+    offset: float
+    crosses: bool  # it crosses that line: it runs through the station
     lines: tuple[LineString, ...]  # its ways, oriented along the route
     way_ids: frozenset[int]
     name_key: str | None  # its own name, normalised; None if unnamed
-    named_line: LineCode | None  # the line its own name gives
-    line_code: LineCode | None  # that, or the line of the ways it runs on to
+    named_lines: frozenset[LineCode]  # the lines its ways' own names give
+    traced_line: LineCode | None  # if unnamed for any line: that of the ways it runs on to
     named_corridor: TrackCorridor | None  # the corridor its own name gives
     corridor: TrackCorridor | None  # that, or the corridor of the ways it runs on to
-    through: bool  # a running line rather than a siding, yard or spur
+    through: bool  # a running line rather than a siding, yard, spur or carshed road
 
     def nearest_line(self, point: Point2) -> LineString:
         return min(self.lines, key=lambda line: line.distance(Point(point)))
+
+    def on_line(self, accepted: Collection[str]) -> bool:
+        """Whether the track belongs to one of `accepted`: by its own name,
+        else by the ways it runs on to."""
+        if self.named_lines:
+            return any(line in accepted for line in self.named_lines)
+        return self.traced_line in accepted
+
+    def named_for_other_lines(self, accepted: Collection[str]) -> bool:
+        return bool(self.named_lines) and not any(line in accepted for line in self.named_lines)
 
 
 def _name_key(name: str) -> str:
@@ -483,12 +559,17 @@ def _joined_ways(ways: Sequence[OsmWay], osm: OsmData) -> list[list[OsmWay]]:
     return list(groups.values())
 
 
+def _is_running_line(tags: Mapping[str, str]) -> bool:
+    """A line trains run along, not a siding, yard, spur, carshed road or
+    freight line (the map build's exclusions, crossovers aside)."""
+    return "service" not in tags and keep_rail_way(tags)
+
+
 def station_tracks(site: StationSite, osm: OsmData) -> list[Track]:
     """Every track within TRACK_RADIUS_M of the station running within
     PARALLEL_MAX_ANGLE_DEG of the route - sidings and bays included, as
     trains start and end on them - as physical tracks: ways joined end to
-    end, and ways drawn over one another, are one track. A track's offset
-    is taken where it passes nearest the station."""
+    end, and ways drawn over one another, are one track."""
     station = Point(site.point)
     min_cos = math.cos(math.radians(PARALLEL_MAX_ANGLE_DEG))
     candidates: list[OsmWay] = []
@@ -497,48 +578,55 @@ def station_tracks(site: StationSite, osm: OsmData) -> list[Track]:
         if way.tags.get("service") in EXCLUDED_TRACK_SERVICES:
             continue
         direction = _tangent(way.line, site.point, 5.0)
-        if abs(direction[0] * site.tangent[0] + direction[1] * site.tangent[1]) >= min_cos:
+        if direction is not None and abs(direction[0] * site.tangent[0] + direction[1] * site.tangent[1]) >= min_cos:
             candidates.append(way)
 
-    found: list[tuple[float, list[OsmWay]]] = []
+    measured: list[tuple[float, bool, list[OsmWay]]] = []
     for joined in _joined_ways(candidates, osm):
+        crossing = probe_offset([way.line for way in joined], site.point, site.tangent, TRACK_RADIUS_M)
+        if crossing is not None:
+            measured.append((crossing, True, joined))
+            continue
         nearest_way = min(joined, key=lambda way: way.line.distance(station))
         nearest = nearest_way.line.interpolate(nearest_way.line.project(station))
-        found.append((offset_from(site.route, (nearest.x, nearest.y)), joined))
+        measured.append((offset_from(site.route, (nearest.x, nearest.y)), False, joined))
 
-    groups: list[list[tuple[float, OsmWay]]] = []
-    for offset, joined in sorted(found, key=lambda pair: pair[0]):
-        members = [(offset, way) for way in joined]
-        if groups and offset - groups[-1][-1][0] <= SAME_TRACK_M:
-            groups[-1].extend(members)
+    # Grouped against each group's first member, so offsets don't chain.
+    groups: list[list[tuple[float, bool, list[OsmWay]]]] = []
+    for member in sorted(measured, key=lambda item: item[0]):
+        if groups and member[0] - groups[-1][0][0] <= SAME_TRACK_M:
+            groups[-1].append(member)
         else:
-            groups.append(members)
+            groups.append([member])
 
     tracks: list[Track] = []
     for index, group in enumerate(groups):
-        ways = [way for _, way in group]
+        ways = [way for _, _, joined in group for way in joined]
+        crossing_offsets = [offset for offset, crosses, _ in group if crosses]
+        offsets = crossing_offsets or [offset for offset, _, _ in group]
         names = [name for way in ways if (name := way.tags.get("name"))]
-        named_line = next((line for name in names if (line := track_line(name))), None)
-        line_code = named_line
+        named_lines = frozenset(line for name in names if (line := track_line(name)))
         named_corridor = next((c for name in names if (c := track_corridor(name))), None)
+        traced_line: LineCode | None = None
         corridor = named_corridor
-        if line_code is None or corridor is None:
+        if not named_lines or corridor is None:
             nearest_way = min(ways, key=lambda way: way.line.distance(station))
-            traced_line, traced_corridor = _traced_identity(osm, nearest_way)
-            line_code = line_code or traced_line
-            corridor = corridor or traced_corridor
+            found_line, found_corridor = _traced_identity(osm, nearest_way)
+            traced_line = None if named_lines else found_line
+            corridor = corridor or found_corridor
         tracks.append(
             Track(
                 index=index,
-                offset=sum(offset for offset, _ in group) / len(group),
+                offset=sum(offsets) / len(offsets),
+                crosses=bool(crossing_offsets),
                 lines=tuple(orient_along(way.line, site.tangent) for way in ways),
                 way_ids=frozenset(way.id for way in ways),
                 name_key=_name_key(names[0]) if names else None,
-                named_line=named_line,
-                line_code=line_code,
+                named_lines=named_lines,
+                traced_line=traced_line,
                 named_corridor=named_corridor,
                 corridor=corridor,
-                through=any("service" not in way.tags for way in ways),
+                through=any(_is_running_line(way.tags) for way in ways),
             )
         )
     return tracks
@@ -554,6 +642,7 @@ class Pairing:
     that go with it."""
 
     tracks: dict[str, int] = field(default_factory=dict)
+    placements: dict[str, Placement] = field(default_factory=dict)  # how each number was put there
     polygons: dict[str, list[Polygon]] = field(default_factory=lambda: defaultdict(list))
     stop_points: dict[str, Point2] = field(default_factory=dict)
     unresolved: list[str] = field(default_factory=list)
@@ -591,6 +680,7 @@ def stop_position_pairs(
     for number, on_tracks in seen.items():
         if len(on_tracks) == 1:
             pairing.tracks[number] = next(iter(on_tracks))
+            pairing.placements[number] = "stop"
         else:
             pairing.unresolved.append(f"stop positions put PF {number} on {len(on_tracks)} different tracks")
             pairing.stop_points.pop(number, None)
@@ -607,33 +697,37 @@ def _describe(platform: OsmPlatform) -> str:
 
 def _island_pairs(
     platform: OsmPlatform, adjacent: Sequence[Track], tracks: Sequence[Track], pairing: Pairing
-) -> dict[str, Track] | None:
+) -> tuple[dict[str, Track], Placement] | None:
     """Numbers for a platform beside two tracks (or two numbers beside
-    one), from the station's numbering order and the pairs already known;
-    None if they don't settle it yet."""
+    one), and how they were placed: by the station's numbering order and
+    the pairs already known, or as the only track left free. None if they
+    don't settle it yet."""
     numbers = platform.numbers
     known = pairing.known(tracks)
     if len(numbers) == 2 and len(adjacent) == 2:
-        increases_left = numbering_increases_left(known, (adjacent[0].offset + adjacent[1].offset) / 2)
+        offsets = (adjacent[0].offset, adjacent[1].offset)
+        increases_left = numbering_increases_left(known, (offsets[0] + offsets[1]) / 2)
         if increases_left is None:
             return None
-        assignment = pair_by_numbering((numbers[0], numbers[1]), (adjacent[0].offset, adjacent[1].offset), increases_left)
-        return {number: adjacent[index] for number, index in assignment.items()}
+        assignment = pair_by_numbering((numbers[0], numbers[1]), offsets, increases_left, known)
+        if assignment is None:
+            return None
+        return {number: adjacent[index] for number, index in assignment.items()}, "numbering"
     if len(numbers) == 1 and len(adjacent) == 2:
         number = numbers[0]
         already = [track for track in adjacent if pairing.tracks.get(number) == track.index]
         if already:
-            return {number: already[0]}
+            return {number: already[0]}, pairing.placements[number]
         taken = {index for other, index in pairing.tracks.items() if other != number}
         free = [track for track in adjacent if track.index not in taken]
         if len(free) == 1:
-            return {number: free[0]}
+            return {number: free[0]}, "free"
         index = place_by_numbering(number, (adjacent[0].offset, adjacent[1].offset), known)
-        return {number: adjacent[index]} if index is not None else None
+        return ({number: adjacent[index]}, "numbering") if index is not None else None
     if len(numbers) == 2 and len(adjacent) == 1:
         elsewhere = [n for n in numbers if n in pairing.tracks and pairing.tracks[n] != adjacent[0].index]
         if len(elsewhere) == 1:
-            return {next(n for n in numbers if n != elsewhere[0]): adjacent[0]}
+            return {next(n for n in numbers if n != elsewhere[0]): adjacent[0]}, "free"
     return None
 
 
@@ -660,7 +754,7 @@ def polygon_pairs(
     beside = {platform.id: _adjacent(platform.polygon, tracks) for platform in nearby}
     notes: dict[str, str] = {}
 
-    def record(settled: Mapping[str, Track], platform: OsmPlatform) -> None:
+    def record(settled: Mapping[str, Track], placement: Placement, platform: OsmPlatform) -> None:
         """Adds a platform's numbers, all or none: none if one contradicts
         a number already placed, or lands on a track a stop position has
         already numbered differently (stop positions are the more precise,
@@ -678,13 +772,14 @@ def polygon_pairs(
                 return
         for number, track in settled.items():
             pairing.tracks[number] = track.index
+            pairing.placements.setdefault(number, placement)
             pairing.polygons[number].append(platform.polygon)
 
     pending: list[OsmPlatform] = []
     for platform in nearby:
         adjacent = beside[platform.id]
         if len(platform.numbers) == 1 and len(adjacent) == 1:
-            record({platform.numbers[0]: adjacent[0]}, platform)
+            record({platform.numbers[0]: adjacent[0]}, "single", platform)
         elif not adjacent:
             notes[platform.id] = f"{_describe(platform)}: no track beside it"
         elif len(platform.numbers) > 2 or len(adjacent) > 2:
@@ -698,7 +793,7 @@ def polygon_pairs(
         for platform in list(pending):
             settled = _island_pairs(platform, beside[platform.id], tracks, pairing)
             if settled is not None:
-                record(settled, platform)
+                record(settled[0], settled[1], platform)
                 pending.remove(platform)
                 progress = True
     for platform in pending:
@@ -709,8 +804,8 @@ def polygon_pairs(
 
 def _other_lines_only(site: StationSite, adjacent: Sequence[Track]) -> bool:
     """Whether every track beside a platform is named for another line."""
-    accepted = SHARED_TRACK_LINES.get(site.line_code, (site.line_code,))
-    return bool(adjacent) and all(t.named_line is not None and t.named_line not in accepted for t in adjacent)
+    accepted = _accepted_lines(site)
+    return bool(adjacent) and all(t.named_for_other_lines(accepted) for t in adjacent)
 
 
 # --------------------------------------------------------------------------
@@ -718,25 +813,45 @@ def _other_lines_only(site: StationSite, adjacent: Sequence[Track]) -> bool:
 
 
 @dataclass(frozen=True, slots=True)
+class Assignment:
+    """What a track carries: its corridor, the direction trains run on
+    it, and how its corridor was found."""
+
+    corridor: Corridor
+    direction: Direction
+    evidence: CorridorEvidence
+
+
+@dataclass(frozen=True, slots=True)
 class Classification:
-    # track index -> (corridor, direction of travel on it)
-    tracks: Mapping[int, tuple[Corridor, Direction]]
+    tracks: Mapping[int, Assignment]  # by track index
     unresolved: tuple[str, ...]
 
 
-def _line_tracks(site: StationSite, tracks: Sequence[Track]) -> list[Track]:
-    """The station's running lines that belong to the site's line."""
-    accepted = SHARED_TRACK_LINES.get(site.line_code, (site.line_code,))
-    own = [t for t in tracks if t.through and t.line_code in accepted]
+# A pair of tracks, its corridor, and how each track's corridor was found.
+CorridorPair = tuple[Corridor, tuple[Track, Track], tuple[CorridorEvidence, CorridorEvidence]]
+
+
+def _accepted_lines(site: StationSite) -> tuple[str, ...]:
+    """The lines whose tracks the site's line runs on."""
+    return SHARED_TRACK_LINES.get(site.line_code, (site.line_code,))
+
+
+def _line_tracks(site: StationSite, tracks: Sequence[Track]) -> tuple[list[Track], bool]:
+    """The running lines through the station that belong to the site's
+    line, and whether they are a plain double track with nothing named
+    for any line (then taken as the line's own pair)."""
+    running = [t for t in tracks if t.through and t.crosses]
+    accepted = _accepted_lines(site)
+    own = [t for t in running if t.on_line(accepted)]
     if site.line_code in SHARED_TRACK_LINES:
-        preferred = [t for t in own if t.line_code == site.line_code]
+        preferred = [t for t in own if t.on_line((site.line_code,))]
         if len(preferred) >= 2:
-            return preferred
+            return preferred, False
     if own:
-        return own
-    # Nothing named for any line: a plain double-track station is the line's pair.
-    unnamed = [t for t in tracks if t.through]
-    return unnamed if len(unnamed) == 2 and all(t.line_code is None for t in unnamed) else []
+        return own, False
+    unnamed = len(running) == 2 and all(not t.named_lines and t.traced_line is None for t in running)
+    return (running, True) if unnamed else ([], False)
 
 
 def _running_pair(candidates: Sequence[Track]) -> tuple[Track, Track] | None:
@@ -753,76 +868,146 @@ def _running_pair(candidates: Sequence[Track]) -> tuple[Track, Track] | None:
     return (pairs[0][0], pairs[0][1]) if len(pairs) == 1 else None
 
 
-def _paired_by_use(line_tracks: Sequence[Track]) -> dict[Corridor, tuple[Track, Track]] | None:
+def _side_by_side(pair: tuple[Track, Track], line_tracks: Sequence[Track]) -> bool:
+    """Whether no other running line of the line lies between the pair."""
+    low, high = sorted((pair[0].offset, pair[1].offset))
+    return not any(low < track.offset < high for track in line_tracks)
+
+
+def _named_evidence(pair: tuple[Track, Track], corridor: TrackCorridor) -> tuple[CorridorEvidence, CorridorEvidence]:
+    """Per track: its own name gives the corridor, or its partner's does,
+    or (neither) it was traced."""
+    named = [track.named_corridor == corridor for track in pair]
+
+    def one(index: int) -> CorridorEvidence:
+        if named[index]:
+            return "own_name"
+        return "partner_name" if named[1 - index] else "traced"
+
+    return (one(0), one(1))
+
+
+def _paired_by_use(line_tracks: Sequence[Track]) -> list[CorridorPair] | None:
     """For four or six running lines: neighbours in pairs across the
-    station (Mumbai pairs its tracks by use), one pair slow and one fast.
-    A pair takes the corridor its tracks' own names give; with four lines
-    and one pair named, the other is the other corridor; if no pair is
-    named, the names of the ways they run on to decide. None if that
-    leaves it open or contradicts itself."""
+    station (Mumbai pairs its tracks by use).
+
+    A pair takes the corridor its tracks' own names give. With four lines,
+    if only one pair is named, the other is the opposite corridor; if
+    neither is, the ways they run on to decide (and again the opposite
+    for an untraced pair). With six, only pairs named on the ground count.
+    None if a pair's names disagree, two pairs claim one corridor, or any
+    track's own or traced corridor contradicts the one it ends up with.
+    """
     if len(line_tracks) not in (4, 6):
         return None
     ordered = sorted(line_tracks, key=lambda track: track.offset)
     pairs = [(ordered[i], ordered[i + 1]) for i in range(0, len(ordered), 2)]
 
-    for traced in (False, True):
-        corridors: list[TrackCorridor | None] = []
-        for pair in pairs:
-            named = {c for t in pair if (c := (t.corridor if traced else t.named_corridor)) is not None}
-            if len(named) > 1:
-                return None
-            corridors.append(next(iter(named)) if named else None)
-        decided = [c for c in corridors if c is not None]
-        if not decided:
-            continue
-        if len(decided) != len(set(decided)):
+    def corridors_of(pair: tuple[Track, Track], traced: bool) -> set[TrackCorridor] | None:
+        found = {c for t in pair if (c := (t.corridor if traced else t.named_corridor)) is not None}
+        return found if len(found) <= 1 else None
+
+    result: list[CorridorPair] = []
+    named = [corridors_of(pair, traced=False) for pair in pairs]
+    if any(found is None for found in named):
+        return None
+    for pair, found in zip(pairs, named, strict=True):
+        if found:
+            corridor = next(iter(found))
+            result.append((corridor, pair, _named_evidence(pair, corridor)))
+    if len(pairs) == 2 and not result:
+        traced = [corridors_of(pair, traced=True) for pair in pairs]
+        if any(found is None for found in traced):
             return None
-        if len(pairs) == 2 and len(decided) == 1:
-            other: TrackCorridor = "fast" if decided[0] == "slow" else "slow"
-            corridors = [c if c is not None else other for c in corridors]
-        return {c: pair for c, pair in zip(corridors, pairs, strict=True) if c is not None}
-    return None
+        for pair, found in zip(pairs, traced, strict=True):
+            if found:
+                result.append((next(iter(found)), pair, ("traced", "traced")))
+    if not result:
+        return None
+    if len(pairs) == 2 and len(result) == 1:
+        taken = result[0][0]
+        other_pair = pairs[1] if result[0][1] is pairs[0] else pairs[0]
+        result.append(("fast" if taken == "slow" else "slow", other_pair, ("opposite", "opposite")))
+
+    corridors = [corridor for corridor, _, _ in result]
+    if len(corridors) != len(set(corridors)):
+        return None
+    for corridor, pair, _ in result:
+        if any(track.corridor is not None and track.corridor != corridor for track in pair):
+            return None
+    return result
+
+
+def _single_pair_evidence(
+    pair: tuple[Track, Track], accepted: Collection[str], plain: bool
+) -> tuple[CorridorEvidence, CorridorEvidence]:
+    """For a line with one pair: a track named for the line, its partner
+    so named, a plain double track, or traced to the line."""
+    if plain:
+        return ("only_pair", "only_pair")
+    named = [bool(track.named_lines) and track.on_line(accepted) for track in pair]
+
+    def one(index: int) -> CorridorEvidence:
+        if named[index]:
+            return "own_name"
+        return "partner_name" if named[1 - index] else "traced"
+
+    return (one(0), one(1))
+
+
+def _corridor_pairs(site: StationSite, tracks: Sequence[Track]) -> tuple[list[CorridorPair], list[str]]:
+    """The line's pairs of running lines with their corridors, and what
+    couldn't be paired."""
+    line_tracks, plain = _line_tracks(site, tracks)
+    unresolved: list[str] = []
+    if site.single_pair:
+        pair = _running_pair(line_tracks)
+        if pair is None or not _side_by_side(pair, line_tracks):
+            return [], [f"{len(line_tracks)} running lines and no single named pair side by side"]
+        return [("any", pair, _single_pair_evidence(pair, _accepted_lines(site), plain))], []
+    by_use = _paired_by_use(line_tracks)
+    if by_use is not None:
+        return by_use, []
+    groups: dict[TrackCorridor, list[Track]] = defaultdict(list)
+    for track in line_tracks:
+        if track.corridor is not None:
+            groups[track.corridor].append(track)
+        else:
+            unresolved.append(f"running line at {track.offset:+.0f} m: no slow/fast name")
+    found: list[CorridorPair] = []
+    for corridor, candidates in groups.items():
+        pair = _running_pair(candidates)
+        if pair is not None and _side_by_side(pair, line_tracks):
+            found.append((corridor, pair, _named_evidence(pair, corridor)))
+        else:
+            unresolved.append(f"{corridor}: {len(candidates)} running lines and no single named pair side by side")
+    return found, unresolved
 
 
 def classify(site: StationSite, tracks: Sequence[Track]) -> Classification:
-    """Corridor and direction for each of the line's tracks. Corridor from
-    the track's name (or its neighbour's, where four or six lines pair up,
-    or the ways it runs on to); "any" on single-pair lines and stations. Within a pair,
-    the track on the left going forward carries forward trains
-    (left-hand running)."""
-    line_tracks = _line_tracks(site, tracks)
-    unresolved: list[str] = []
-    pairs: dict[Corridor, tuple[Track, Track]] = {}
-    if site.single_pair:
-        pair = _running_pair(line_tracks)
-        if pair is not None:
-            pairs["any"] = pair
-        else:
-            unresolved.append(f"{len(line_tracks)} running lines and no single named pair")
-    elif (by_use := _paired_by_use(line_tracks)) is not None:
-        pairs.update(by_use)
-    else:
-        groups: dict[Corridor, list[Track]] = defaultdict(list)
-        for track in line_tracks:
-            if track.corridor is not None:
-                groups[track.corridor].append(track)
-            else:
-                unresolved.append(f"running line at {track.offset:+.0f} m: no slow/fast name")
-        for corridor, candidates in groups.items():
-            pair = _running_pair(candidates)
-            if pair is not None:
-                pairs[corridor] = pair
-            else:
-                unresolved.append(f"{corridor}: {len(candidates)} running lines and no single named pair")
-
-    assignments: dict[int, tuple[Corridor, Direction]] = {}
-    for corridor, pair in pairs.items():
+    """Corridor, direction and evidence for each of the line's paired
+    tracks. Within a pair the track on the left going forward carries
+    forward trains (left-hand running); that must agree with the pair's
+    order across the station, or the pair stays unresolved."""
+    pairs, unresolved = _corridor_pairs(site, tracks)
+    assignments: dict[int, Assignment] = {}
+    for corridor, pair, evidence in pairs:
         forward_line = left_track(
             (pair[0].nearest_line(site.point), pair[1].nearest_line(site.point)), forward=True, station_point=site.point
         )
-        for track in pair:
-            is_forward = any(line is forward_line for line in track.lines)
-            assignments[track.index] = (corridor, site.forward_direction if is_forward else _flip(site.forward_direction))
+        if forward_line is None:
+            unresolved.append(f"{corridor}: pair at {pair[0].offset:+.0f}/{pair[1].offset:+.0f} m too close to tell apart")
+            continue
+        forward_index = 0 if any(line is forward_line for line in pair[0].lines) else 1
+        if pair[forward_index].offset <= pair[1 - forward_index].offset:
+            unresolved.append(
+                f"{corridor}: left-hand running and the offsets across the station disagree "
+                f"for the pair at {pair[0].offset:+.0f}/{pair[1].offset:+.0f} m"
+            )
+            continue
+        for index, track in enumerate(pair):
+            direction = site.forward_direction if index == forward_index else _flip(site.forward_direction)
+            assignments[track.index] = Assignment(corridor, direction, evidence[index])
     return Classification(tracks=assignments, unresolved=tuple(unresolved))
 
 
@@ -831,12 +1016,18 @@ def classify(site: StationSite, tracks: Sequence[Track]) -> Classification:
 
 
 def _door(site: StationSite, track: Track, direction: Direction, polygons: Sequence[Polygon]) -> Door | None:
-    """Which side of a train travelling `direction` the platforms are on."""
+    """Which side of a train travelling `direction` the platforms are on,
+    judged from each platform's point nearest the track (a long or bent
+    platform's centre can lie anywhere). A platform touching the track
+    tells nothing."""
     forward = direction == site.forward_direction
     sides: set[Side] = set()
     for polygon in polygons:
-        centroid = (polygon.centroid.x, polygon.centroid.y)
-        sides.add(side_of(track.nearest_line(centroid), centroid, forward=forward))
+        line = min(track.lines, key=lambda candidate: candidate.distance(polygon))
+        nearest = nearest_points(polygon, line)[0]
+        side = side_of(line, (nearest.x, nearest.y), forward=forward)
+        if side is not None:
+            sides.add(side)
     return door_from_sides(sides)
 
 
@@ -856,37 +1047,42 @@ def _stop_platforms(track: Track, stop_point: Point2, osm: OsmData) -> list[Poly
 def entries_for_station(
     site: StationSite, tracks: Sequence[Track], pairing: Pairing, classification: Classification, osm: OsmData
 ) -> tuple[list[PlatformJson], list[str]]:
-    """One through entry per (corridor, direction); numbers sharing it
-    merge, and then vary from train to train, so only a lone number is
-    certain."""
-    grouped: dict[tuple[Corridor, Direction], list[tuple[str, Door | None]]] = defaultdict(list)
+    """One through entry per (corridor, direction).
+
+    An entry is certain only if it has a single number, the station is no
+    terminus (trains starting or ending there use whichever platform is
+    free), the track's corridor comes from a name on it or its partner,
+    and the number from a stop position or a platform with one number
+    beside one track. Anything weaker is shown as "usually".
+    """
+    grouped: dict[tuple[Corridor, Direction], list[tuple[str, Door | None, bool]]] = defaultdict(list)
     unresolved: list[str] = []
-    accepted = SHARED_TRACK_LINES.get(site.line_code, (site.line_code,))
+    accepted = _accepted_lines(site)
     for number, index in sorted(pairing.tracks.items(), key=lambda item: platform_sort_key(item[0])):
         track = tracks[index]
         assignment = classification.tracks.get(index)
         if assignment is None:
-            if track.named_line is None or track.named_line in accepted:
+            if not track.named_for_other_lines(accepted):
                 kind = "running line" if track.through else "siding or bay"
                 unresolved.append(f"PF {number}: on a {kind} outside the line's pairs")
             continue
-        corridor, direction = assignment
         polygons = pairing.polygons.get(number) or (
             _stop_platforms(track, pairing.stop_points[number], osm) if number in pairing.stop_points else []
         )
-        grouped[(corridor, direction)].append((number, _door(site, track, direction, polygons)))
+        strong = assignment.evidence in STRONG_CORRIDOR_EVIDENCE and pairing.placements[number] in STRONG_PLACEMENTS
+        door = _door(site, track, assignment.direction, polygons)
+        grouped[(assignment.corridor, assignment.direction)].append((number, door, strong))
 
     entries: list[PlatformJson] = []
     for (corridor, direction), numbered in sorted(grouped.items()):
-        numbers = [number for number, _ in numbered]
         entries.append(
             PlatformJson(
-                numbers=numbers,
+                numbers=[number for number, _, _ in numbered],
                 corridor=corridor,
                 direction=direction,
                 role="through",
-                door=common_door(door for _, door in numbered),
-                certain=len(numbers) == 1,
+                door=common_door(door for _, door, _ in numbered),
+                certain=len(numbered) == 1 and numbered[0][2] and not site.terminus,
             )
         )
     return entries, unresolved
@@ -957,8 +1153,11 @@ def print_coverage(sites: Sequence[StationSite], stations: Mapping[tuple[str, st
         station = stations.get((site.line_code, site.station))
         platforms = station["platforms"] if station else []
         category, status = coverage_status(site, platforms)
+        withheld = station is not None and not platforms and station["source"] == "curated"
+        if withheld:
+            status = "none (withheld)"
         totals[category] += 1
-        source = f" [{station['source'].split(' ')[0]}]" if station and platforms else ""
+        source = f" [{station['source']}]" if station and (platforms or withheld) else ""
         print(f"    {site.station:<24} {status}{source}")
     print(f"\n  totals: {totals['full']} full, {totals['partial']} partial, {totals['none']} none")
 
@@ -976,6 +1175,136 @@ def print_unresolved(stations: Mapping[tuple[str, str], DerivedStationJson]) -> 
 
 
 # --------------------------------------------------------------------------
+# Curated stations and the merge
+
+
+def load_curated(path: Path, sites: Sequence[StationSite]) -> dict[tuple[str, str], StationTable]:
+    """The curated stations, keyed (line, station). Each must be a station
+    of its line in network.json and cite a source; the entries themselves
+    are checked by the app's loader once merged. An empty platform list
+    withholds the station: known, but deliberately without platforms
+    (its source says why)."""
+    try:
+        raw = json.loads(path.read_text())
+    except (FileNotFoundError, json.JSONDecodeError) as exc:
+        raise BuildError(f"{path}: {exc}") from exc
+    stations = raw.get("stations") if isinstance(raw, dict) else None
+    if not isinstance(stations, list):
+        raise BuildError(f"{path}: expected an object with a list of stations")
+    known = {(site.line_code, site.station) for site in sites}
+    curated: dict[tuple[str, str], StationTable] = {}
+    for station in stations:
+        try:
+            key = (station["line_code"], station["station"])
+            source = station["source"]
+            platforms = station["platforms"]
+        except (KeyError, TypeError) as exc:
+            raise BuildError(f"{path}: malformed station {station!r} ({exc})") from exc
+        if not all(isinstance(part, str) for part in key):
+            raise BuildError(f"{path}: line_code and station must be strings in {station!r}")
+        if key not in known:
+            raise BuildError(f"{path}: {key} is not a station of that line in network.json")
+        if key in curated:
+            raise BuildError(f"{path}: {key} is listed twice")
+        if not isinstance(source, str) or not source.strip():
+            raise BuildError(f"{path}: {key} has no source")
+        if not isinstance(platforms, list):
+            raise BuildError(f"{path}: {key} platforms must be a list")
+        curated[key] = StationTable(line_code=key[0], station=key[1], source=source, platforms=platforms)
+    return curated
+
+
+def merge_tables(
+    sites: Sequence[StationSite],
+    derived: Mapping[tuple[str, str], DerivedStationJson],
+    curated: Mapping[tuple[str, str], StationTable],
+) -> dict[tuple[str, str], StationTable]:
+    """Derived stations, each replaced wholesale by its curated one, in
+    line then route order. Derived stations with no entries are left out;
+    a curated one with none stays in, so a withheld station shows no
+    platform rather than OSM's."""
+    merged: dict[tuple[str, str], StationTable] = {}
+    for site in sites:
+        key = (site.line_code, site.station)
+        if key in curated:
+            merged[key] = StationTable(
+                line_code=key[0], station=key[1], source="curated", platforms=curated[key]["platforms"]
+            )
+        elif derived[key]["platforms"]:
+            merged[key] = StationTable(line_code=key[0], station=key[1], source="osm", platforms=derived[key]["platforms"])
+    return merged
+
+
+def _same_corridor(a: Corridor, b: Corridor) -> bool:
+    return a == b or "any" in (a, b)
+
+
+def disagreements(
+    derived: Mapping[tuple[str, str], DerivedStationJson], curated: Mapping[tuple[str, str], StationTable]
+) -> list[str]:
+    """Where a curated station contradicts what OSM gives: an OSM platform
+    number the curated entries for that corridor and direction don't list
+    (through entries first, else any role, as at termini), or door sides
+    that can't both hold."""
+    notes: list[str] = []
+    for key, station in curated.items():
+        if not station["platforms"]:
+            if derived[key]["platforms"]:
+                withheld = ", ".join(
+                    f"{e['corridor']} {e['direction']} PF {'/'.join(e['numbers'])}" for e in derived[key]["platforms"]
+                )
+                notes.append(f"{key[0]} {key[1]}: withheld by curation; OSM has {withheld}")
+            continue
+        for osm_entry in derived[key]["platforms"]:
+            facing = [
+                entry
+                for entry in station["platforms"]
+                if entry["direction"] == osm_entry["direction"] and _same_corridor(entry["corridor"], osm_entry["corridor"])
+            ]
+            matching = [entry for entry in facing if entry["role"] == "through"] or facing
+            label = f"{key[0]} {key[1]}: {osm_entry['corridor']} {osm_entry['direction']}"
+            osm_numbers = "/".join(osm_entry["numbers"])
+            if not matching:
+                notes.append(f"{label}: OSM has PF {osm_numbers}, curated has nothing")
+                continue
+            curated_numbers = {number for entry in matching for number in entry["numbers"]}
+            if not set(osm_entry["numbers"]) <= curated_numbers:
+                listed = "/".join(sorted(curated_numbers, key=platform_sort_key))
+                notes.append(f"{label}: OSM has PF {osm_numbers}, curated has PF {listed}")
+            for entry in matching:
+                door = entry["door"]
+                if (
+                    set(entry["numbers"]) & set(osm_entry["numbers"])
+                    and door is not None
+                    and osm_entry["door"] is not None
+                    and common_door((door, osm_entry["door"])) is None
+                ):
+                    notes.append(f"{label}: PF {osm_numbers} doors {osm_entry['door']} in OSM, {door} curated")
+    return notes
+
+
+def write_platform_table(path: Path, sites: Sequence[StationSite], stations: Sequence[StationTable]) -> None:
+    """Writes the table, having checked it loads through the app's own
+    loader (a failing table never replaces a good one)."""
+    payload = {
+        "generated_at": datetime.now(UTC).isoformat(timespec="seconds"),
+        "attribution": ATTRIBUTION,
+        "single_pair": [[site.line_code, site.station] for site in sites if site.single_pair],
+        "stations": list(stations),
+    }
+    staged = path.with_name(f"{path.stem}.staged.json")
+    try:
+        write_json(staged, payload)
+        try:
+            load_platform_table(staged)
+        except PlatformDataError as exc:
+            raise BuildError(f"the merged platform table doesn't load: {exc}") from exc
+        staged.replace(path)
+    finally:
+        staged.unlink(missing_ok=True)
+
+
+# --------------------------------------------------------------------------
 
 
 def derive_all(sites: Sequence[StationSite], osm: OsmData) -> dict[tuple[str, str], DerivedStationJson]:
@@ -986,6 +1315,19 @@ def derive_all(sites: Sequence[StationSite], osm: OsmData) -> dict[tuple[str, st
     return {(site.line_code, site.station): derive_station(site, osm, by_line[site.line_code]) for site in sites}
 
 
+def read_json(path: Path, built_by: str) -> dict[str, object]:
+    """A generated JSON object, with a clear error if it hasn't been built."""
+    try:
+        data = json.loads(path.read_text())
+    except FileNotFoundError as exc:
+        raise BuildError(f"{path} is missing - run `uv run python {built_by}` first") from exc
+    except json.JSONDecodeError as exc:
+        raise BuildError(f"{path} is not valid JSON: {exc}") from exc
+    if not isinstance(data, dict):
+        raise BuildError(f"{path}: expected a JSON object")
+    return data
+
+
 def write_json(path: Path, payload: object) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, indent=1, ensure_ascii=False) + "\n")
@@ -993,16 +1335,34 @@ def write_json(path: Path, payload: object) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--derive-only", action="store_true", help="stop after writing data/platforms/derived.json")
     parser.add_argument("--refresh", action="store_true", help="ignore the local Overpass cache")
     args = parser.parse_args()
 
-    network = json.loads(NETWORK_OUT.read_text())
-    sites = station_sites(network)
+    sites = station_sites(read_json(NETWORK_OUT, "scripts/build_osm_data.py"), timetable_termini(
+        read_json(TIMETABLE_JSON, "scripts/import_timetables.py")
+    ))
     osm = load_osm(args.refresh)
     derived = derive_all(sites, osm)
     write_json(DERIVED_OUT, {f"{line}|{name}": station for (line, name), station in derived.items()})
     print(f"wrote {DERIVED_OUT.relative_to(BACKEND_DIR)} ({len(derived)} stations)")
-    print_coverage(sites, derived)
+    if args.derive_only:
+        print_coverage(sites, derived)
+        print_unresolved(derived)
+        return
+
+    curated = load_curated(CURATED_IN, sites)
+    merged = merge_tables(sites, derived, curated)
+    write_platform_table(PLATFORMS_JSON, sites, list(merged.values()))
+    print(
+        f"wrote {PLATFORMS_JSON.relative_to(BACKEND_DIR)} ({len(merged)} stations: "
+        f"{sum(s['source'] == 'curated' for s in merged.values())} curated, "
+        f"{sum(s['source'] == 'osm' for s in merged.values())} from OSM)"
+    )
+    print_coverage(sites, merged)
+    print("\nwhere OSM and the curated stations disagree")
+    for note in disagreements(derived, curated) or ["(none)"]:
+        print(f"  {note}")
     print_unresolved(derived)
 
 

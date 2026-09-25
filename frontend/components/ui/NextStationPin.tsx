@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { formatDistance } from "@/lib/format";
 import { trainPose } from "@/lib/motion";
+import { livePlatform, platformLabel } from "@/lib/platform";
 import { moveAnchor, registerAnchor, unregisterAnchor } from "@/lib/overlay";
 import { useRailView } from "@/lib/store";
 
@@ -13,6 +14,13 @@ const ANCHOR_ID = "next-station-pin";
 export function NextStationPin({ trainId }: { trainId: string }) {
   const next = useRailView((s) => s.trainPairs[trainId]?.to.next_station ?? null);
   const routeCode = useRailView((s) => s.trainPairs[trainId]?.to.route_code ?? null);
+  // Only a certain platform: the pin stays short.
+  const platformNumbers = useRailView((s) => {
+    const train = s.trainPairs[trainId]?.to;
+    if (!train?.next_platform_certain) return null;
+    const platform = livePlatform(train.next_platform, true, null);
+    return platform ? platformLabel(platform) : null;
+  });
   const track = useRailView((s) => (routeCode ? s.tracks[routeCode] : undefined));
   // Where the station is along this train's route.
   const nextChainage = useRailView((s) => {
@@ -56,7 +64,11 @@ export function NextStationPin({ trainId }: { trainId: string }) {
           </span>
           <span className="flex flex-col leading-tight">
             <span className="text-[14px] font-semibold text-fg">{next.name}</span>
-            {distance !== null && <span className="text-[11px] text-fg-muted">{formatDistance(distance)}</span>}
+            {distance !== null && (
+              <span className="text-[11px] text-fg-muted">
+                {platformNumbers ? `${formatDistance(distance)} · ${platformNumbers}` : formatDistance(distance)}
+              </span>
+            )}
           </span>
         </div>
       </div>

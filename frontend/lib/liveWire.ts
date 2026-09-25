@@ -30,6 +30,9 @@ const TRAIN_FIELDS = [
   "destination_eta_seconds",
   "status",
   "last_updated_epoch",
+  "next_platform",
+  "next_platform_certain",
+  "next_platform_door",
 ] as const satisfies readonly TrainField[];
 
 // Compile-time check that every TrainPositionUpdate field is decoded.
@@ -38,6 +41,19 @@ const everyFieldDecoded: [UndecodedField] extends [never] ? true : never = true;
 void everyFieldDecoded;
 
 const KNOWN_FIELDS: ReadonlySet<string> = new Set(TRAIN_FIELDS);
+
+// Columns added after the first release: an older server doesn't send
+// them yet, so a full snapshot without them decodes them to these
+// instead of failing.
+const OPTIONAL_DEFAULTS: Partial<Record<TrainField, SnapshotCell>> = {
+  next_platform: null,
+  next_platform_certain: false,
+  next_platform_door: null,
+};
+
+/** Where a field's value is in a row, or -1 for an optional field the
+ * server didn't send, which takes its default. */
+const MISSING = -1;
 const STATION_FIELDS: ReadonlySet<TrainField> = new Set(["origin", "destination", "current_station", "next_station"]);
 
 /** The fields a moving-parts tick carries for one train. */
@@ -90,8 +106,8 @@ export function decodeSnapshot(message: unknown): LiveSnapshot | null {
   const columns: (readonly [TrainField, number])[] = full
     ? TRAIN_FIELDS.map((field) => {
         const index = message.fields.indexOf(field);
-        if (index < 0) throw new SnapshotDecodeError(`no "${field}" column`);
-        return [field, index] as const;
+        if (index < 0 && !(field in OPTIONAL_DEFAULTS)) throw new SnapshotDecodeError(`no "${field}" column`);
+        return [field, index < 0 ? MISSING : index] as const;
       })
     : message.fields.flatMap((field, index) =>
         KNOWN_FIELDS.has(field) ? [[field as TrainField, index] as const] : [],
@@ -114,7 +130,7 @@ export function decodeSnapshot(message: unknown): LiveSnapshot | null {
     }
     const train: Record<string, SnapshotCell | StationRef | null> = {};
     for (const [field, index] of columns) {
-      const cell = row[index] ?? null;
+      const cell = index === MISSING ? (OPTIONAL_DEFAULTS[field] ?? null) : (row[index] ?? null);
       train[field] = STATION_FIELDS.has(field) ? station(cell) : cell;
     }
     return train;

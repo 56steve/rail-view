@@ -7,6 +7,15 @@ from app.schemas.station import StationOut, StationRef
 TrainStatus = Literal["live", "stale"]
 TrainType = Literal["FAST", "SLOW"]
 StopState = Literal["departed", "at_platform", "next", "upcoming"]
+DoorSide = Literal["left", "right", "both"]
+
+
+class PlatformOut(BaseModel):
+    numbers: list[str]
+    # Side of the train the platform is on, facing the way it travels.
+    door: DoorSide | None
+    # False: it varies from train to train here, so show "usually".
+    certain: bool
 
 
 class TrainPositionUpdate(BaseModel):
@@ -30,6 +39,11 @@ class TrainPositionUpdate(BaseModel):
     destination: StationRef
     current_station: StationRef | None
     next_station: StationRef | None
+
+    # The next stop's platform numbers, comma-separated ("3", "5,6,7").
+    next_platform: str | None = None
+    next_platform_certain: bool = False
+    next_platform_door: DoorSide | None = None
 
     direction_forward: bool
     direction_label: str  # e.g. "Churchgate → Borivali"
@@ -61,6 +75,7 @@ class StopTime(BaseModel):
     expected_epoch: float
     # None for stops the train passed before this server started tracking it.
     observed_arrival_epoch: float | None
+    platform: PlatformOut | None = None
 
 
 class TrainDetail(BaseModel):

@@ -5,6 +5,7 @@ import { ArrowLeft, ArrowUp, Layers, Navigation } from "lucide-react";
 import { useMobileInset } from "@/hooks/useLayout";
 import { formatClock, formatEta, formatSpeed, trainTypeLabel } from "@/lib/format";
 import { navigate, navigateBack } from "@/lib/navigation";
+import { doorLabel, livePlatform, platformLabel } from "@/lib/platform";
 import { useRailView } from "@/lib/store";
 import { DelayText, IconButton } from "../ui/primitives";
 
@@ -34,6 +35,7 @@ export function FollowScreen({ trainId }: { trainId: string }) {
   const openDetails = () => navigate({ name: "train", trainId });
   const etaAtNext =
     train.next_station && train.eta_seconds !== null ? train.last_updated_epoch + train.eta_seconds : null;
+  const platform = livePlatform(train.next_platform, train.next_platform_certain, train.next_platform_door);
 
   return (
     <>
@@ -95,6 +97,11 @@ export function FollowScreen({ trainId }: { trainId: string }) {
                 <span className="block text-[12px] text-fg-muted">
                   {train.eta_seconds !== null && train.eta_seconds < 45 ? "arriving" : `in ${formatEta(train.eta_seconds)}`}
                 </span>
+                {platform && (
+                  <span className="block text-[12px] text-fg-muted">
+                    {[platformLabel(platform), doorLabel(platform.door)].filter(Boolean).join(" · ")}
+                  </span>
+                )}
               </span>
             </div>
           </div>

@@ -14,7 +14,7 @@ decides how much data a phone, and the host, spends watching trains:
   host's edge (Cloudflare, in front of Render) strips WebSocket
   compression, so the app compresses it itself.
 
-About 5 KB a second for ~190 trains, against 37 KB as a plain table.
+About 5.5 KB a second for ~200 trains, against 37 KB as a plain table.
 Clients that connect without asking for this format (an app loaded before
 it) get the original full table every tick.
 """

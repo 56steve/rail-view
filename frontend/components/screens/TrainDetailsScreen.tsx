@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type JSX } from "react";
 import { ArrowLeft, Bell, BellOff, Star, View } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 import { useIsDesktop } from "@/hooks/useLayout";
@@ -9,7 +9,8 @@ import { ApiError, fetchTrainDetail } from "@/lib/api";
 import { delayTone, formatClock, formatSpeed, minutesUntil, trainIdentity, trainTypeLabel } from "@/lib/format";
 import { navigate, navigateBack } from "@/lib/navigation";
 import { useRailView } from "@/lib/store";
-import type { StopTime, TrainDetail } from "@/lib/types";
+import { doorLabel, platformLabel } from "@/lib/platform";
+import type { Platform, StopTime, TrainDetail } from "@/lib/types";
 import { AlertSheet } from "../ui/AlertSheet";
 import { Card, PrimaryButton } from "../ui/primitives";
 import { TrainPreview } from "../ui/TrainPreview";
@@ -47,7 +48,7 @@ export function TrainDetailsScreen({ trainId }: { trainId: string }) {
 
   const train = detail?.position;
   const stale = train?.status === "stale";
-  const atPlatform = detail?.stops.some((s) => s.state === "at_platform");
+  const currentStop = detail?.stops.find((s) => s.state === "at_platform");
 
   return (
     <div className="pointer-events-auto flex h-full flex-col overflow-y-auto bg-ink-950 md:rounded-3xl md:border md:hairline md:shadow-float">
@@ -75,7 +76,7 @@ export function TrainDetailsScreen({ trainId }: { trainId: string }) {
             <div>
               <div className="flex items-center gap-3">
                 <h1 className="text-[24px] font-semibold tracking-[-0.01em] text-fg">{trainTypeLabel(train)}</h1>
-                <StatusBadge stale={stale} atPlatform={Boolean(atPlatform)} />
+                <StatusBadge stale={stale} atPlatform={currentStop !== undefined} platform={currentStop?.platform ?? null} />
               </div>
               <p className="mt-1 text-[16px] text-fg-muted">{train.direction_label}</p>
               <p className="mt-1.5 text-[13px] text-fg-subtle">
@@ -139,11 +140,12 @@ export function TrainDetailsScreen({ trainId }: { trainId: string }) {
   );
 }
 
-function StatusBadge({ stale, atPlatform }: { stale: boolean; atPlatform: boolean }) {
+function StatusBadge({ stale, atPlatform, platform }: { stale: boolean; atPlatform: boolean; platform: Platform | null }) {
+  // Only a certain platform: "At usually PF 5–7" doesn't read.
   const [label, className] = stale
     ? ["Signal lost", "border-warning/40 text-warning"]
     : atPlatform
-      ? ["At platform", "border-primary/40 text-primary"]
+      ? [platform?.certain ? `At ${platformLabel(platform)}` : "At platform", "border-primary/40 text-primary"]
       : ["Running", "border-success/40 text-success"];
   return <span className={`rounded-full border px-2.5 py-0.5 text-[12px] font-medium ${className}`}>{label}</span>;
 }
@@ -188,10 +190,14 @@ function Timeline({ stops, now }: { stops: StopTime[]; now: number }) {
         const last = i === stops.length - 1;
         let detail: string;
         if (stop.state === "departed") {
+          // The filled dot and line already say it departed, so the row
+          // keeps only the time, short enough to sit beside the platform:
+          // "~" where it's the timetable's, as it passed before tracking.
           detail = stop.observed_arrival_epoch
-            ? `Departed • ${formatClock(stop.observed_arrival_epoch)}`
-            : `Departed • sched. ${formatClock(stop.scheduled_epoch)}`;
+            ? formatClock(stop.observed_arrival_epoch)
+            : `~${formatClock(stop.scheduled_epoch)}`;
         } else if (stop.state === "at_platform") {
+          // The row's chip and the header badge already name the platform.
           detail = "At platform";
         } else if (stop.state === "next") {
           const minutes = minutesUntil(stop.expected_epoch, now);
@@ -199,6 +205,8 @@ function Timeline({ stops, now }: { stops: StopTime[]; now: number }) {
         } else {
           detail = formatClock(stop.expected_epoch);
         }
+        // Which side to get out: only where the rider is about to need it.
+        const door = current && stop.platform ? doorLabel(stop.platform.door) : null;
         return (
           <li key={stop.station.code} className="relative flex items-center gap-4 py-2">
             {!last && (
@@ -216,17 +224,30 @@ function Timeline({ stops, now }: { stops: StopTime[]; now: number }) {
                     : "h-4 w-4 border-2 border-white/25 bg-ink-950"
               }`}
             />
-            <span className={`w-28 shrink-0 truncate text-[14.5px] ${current ? "font-semibold text-fg" : passed ? "text-fg-muted" : "text-fg"}`}>
-              {stop.station.name}
+            <span className="w-28 min-w-0">
+              <span className={`block truncate text-[14.5px] ${current ? "font-semibold text-fg" : passed ? "text-fg-muted" : "text-fg"}`}>
+                {stop.station.name}
+              </span>
+              {door && <span className="block truncate text-[11.5px] text-fg-subtle">{door}</span>}
             </span>
             <span
-              className={`truncate text-[13px] tabular-nums ${current ? "font-medium text-primary" : "text-fg-subtle"}`}
+              className={`shrink-0 whitespace-nowrap text-[13px] tabular-nums ${current ? "font-medium text-primary" : "text-fg-subtle"}`}
             >
               {detail}
             </span>
+            {stop.platform && <PlatformChip platform={stop.platform} />}
           </li>
         );
       })}
     </ol>
+  );
+}
+
+function PlatformChip({ platform }: { platform: Platform }): JSX.Element {
+  const tone = platform.certain ? "border-primary/40 text-primary" : "border-ink-600 text-fg-muted";
+  return (
+    <span className={`ml-auto shrink-0 whitespace-nowrap rounded-full border px-2 py-0.5 text-[11.5px] font-medium tabular-nums ${tone}`}>
+      {platformLabel(platform)}
+    </span>
   );
 }

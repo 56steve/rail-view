@@ -138,3 +138,10 @@ def test_legacy_clients_get_the_original_table(evening_trains: list[TrainPositio
 def test_each_format_is_encoded_once(evening_trains: list[TrainPositionUpdate]) -> None:
     snapshot = Snapshot(WEDNESDAY_EVENING, evening_trains, full=True)
     assert snapshot.payload("deflate") is snapshot.payload("deflate")
+
+
+def test_snapshot_table_has_next_platform_columns(evening_trains: list[TrainPositionUpdate]) -> None:
+    # These change stop to stop, so they must ride in every tick, not
+    # just the periodic full snapshot.
+    assert {"next_platform", "next_platform_certain", "next_platform_door"} <= set(SNAPSHOT_FIELDS)
+    assert {"next_platform", "next_platform_certain", "next_platform_door"} <= set(MOVING_FIELDS)

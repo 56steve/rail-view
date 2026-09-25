@@ -18,10 +18,11 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Literal, get_args
 
+from app.schemas.train import DoorSide, PlatformOut
+
 Corridor = Literal["slow", "fast", "any"]
 Direction = Literal["UP", "DN"]
 StopRole = Literal["originating", "through", "terminating"]
-DoorSide = Literal["left", "right", "both"]
 
 _CORRIDORS = frozenset(get_args(Corridor))
 _DIRECTIONS = frozenset(get_args(Direction))
@@ -71,9 +72,10 @@ def resolve_platform(
     "through" on the other corridor. The first step with any entries
     wins - a fast train's originating platform must never fall back to
     the slow platform just because the slow side happens to have a
-    role-specific entry and the fast side doesn't. Only the first two
-    steps can produce a certain answer: once the train is off its usual
-    corridor, the platform is never certain.
+    role-specific entry and the fast side doesn't. Only a match for the
+    stop's own role on its own corridor can be certain: a train starting
+    or ending at a station may use a bay rather than the through
+    platform, and once it's off its usual corridor nothing is certain.
     """
     facing = [e for e in entries if e.direction == direction]
 
@@ -84,7 +86,7 @@ def resolve_platform(
     through_entries = [e for e in facing if e.role == "through"]
     steps: tuple[tuple[bool, list[PlatformEntry]], ...] = (
         (True, [e for e in role_entries if own_corridor(e)]),
-        (True, [e for e in through_entries if own_corridor(e)]),
+        (role == "through", [e for e in through_entries if own_corridor(e)]),
         (False, [e for e in role_entries if not own_corridor(e)]),
         (False, [e for e in through_entries if not own_corridor(e)]),
     )
@@ -103,6 +105,14 @@ def resolve_platform(
         door=doors.pop() if len(doors) == 1 else None,
         certain=certain_eligible and len(matches) == 1 and matches[0].certain,
     )
+
+
+def platform_out(assignment: PlatformAssignment | None) -> PlatformOut | None:
+    """The API/wire representation of a resolved platform, or None if the
+    stop has none."""
+    if assignment is None:
+        return None
+    return PlatformOut(numbers=list(assignment.numbers), door=assignment.door, certain=assignment.certain)
 
 
 @dataclass(frozen=True, slots=True)

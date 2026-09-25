@@ -18,6 +18,7 @@ from platform_geometry import (  # noqa: E402
     place_by_numbering,
     platform_numbers,
     platform_sort_key,
+    probe_offset,
     side_of,
     track_corridor,
     track_line,
@@ -57,6 +58,12 @@ def test_side_of_depends_on_direction_of_travel() -> None:
     assert side_of(WEST, (-3, 150), forward=True) == "left"
     assert side_of(WEST, (-3, 150), forward=False) == "right"
     assert side_of(WEST, (3, 150), forward=True) == "right"
+
+
+def test_side_of_is_undecided_within_half_a_metre_of_the_line() -> None:
+    assert side_of(WEST, (0.3, 150), forward=True) is None
+    assert side_of(WEST, (0.0, 150), forward=False) is None
+    assert side_of(WEST, (0.8, 150), forward=True) == "right"
 
 
 def test_side_of_uses_the_nearest_segment_of_a_bending_track() -> None:
@@ -103,6 +110,10 @@ def test_left_hand_running_picks_the_west_track_going_north() -> None:
     assert left_track((WEST, EAST), forward=False, station_point=(2.5, 150)) is EAST
 
 
+def test_left_track_is_undecided_for_tracks_drawn_on_top_of_each_other() -> None:
+    assert left_track((WEST, LineString([(0.2, 0), (0.2, 300)])), forward=True, station_point=(0, 150)) is None
+
+
 def test_adjacent_tracks_are_those_along_the_platform_edges() -> None:
     island = Polygon([(1.5, 100), (3.5, 100), (3.5, 200), (1.5, 200)])
     far = LineString([(30, 0), (30, 300)])
@@ -124,6 +135,28 @@ def test_orient_along_reverses_a_track_drawn_against_the_route() -> None:
 def test_offset_from_is_positive_to_the_left_of_travel() -> None:
     assert offset_from(WEST, (-3, 10)) == pytest.approx(3.0)
     assert offset_from(WEST, (4, 10)) == pytest.approx(-4.0)
+
+
+def test_offset_from_is_a_plain_float_and_zero_on_the_line() -> None:
+    assert type(offset_from(WEST, (-3, 10))) is float
+    assert offset_from(WEST, (0.2, 10)) == 0.0
+
+
+def test_probe_offset_is_where_a_line_square_across_the_route_meets_the_track() -> None:
+    # A track bending away east: measured where it crosses y = 150, not at
+    # its nearest point to the station.
+    bending = LineString([(10, 0), (10, 100), (14, 300)])
+    assert probe_offset((bending,), origin=(0, 150), tangent=(0.0, 1.0), half_width=50) == pytest.approx(-11.0)
+
+
+def test_probe_offset_is_none_for_a_track_that_ends_before_the_station() -> None:
+    leg = LineString([(5, 0), (5, 100)])
+    assert probe_offset((leg,), origin=(0, 150), tangent=(0.0, 1.0), half_width=50) is None
+
+
+def test_probe_offset_ignores_a_track_crossing_at_an_angle() -> None:
+    crossing = LineString([(-40, 140), (40, 160)])
+    assert probe_offset((crossing,), origin=(0, 150), tangent=(0.0, 1.0), half_width=50) is None
 
 
 def test_offset_from_follows_a_curving_line() -> None:
@@ -156,9 +189,17 @@ def test_numbering_direction_ignores_far_platforms_of_another_series() -> None:
 
 
 def test_pair_by_numbering_follows_the_numbering_direction() -> None:
-    assert pair_by_numbering(("4", "5"), (-6.0, -21.0), increases_left=False) == {"4": 0, "5": 1}
-    assert pair_by_numbering(("5", "4"), (-6.0, -21.0), increases_left=True) == {"4": 1, "5": 0}
-    assert pair_by_numbering(("2A", "3"), (0.0, 5.0), increases_left=True) == {"2A": 0, "3": 1}
+    assert pair_by_numbering(("4", "5"), (-6.0, -21.0), increases_left=False, known=[]) == {"4": 0, "5": 1}
+    assert pair_by_numbering(("5", "4"), (-6.0, -21.0), increases_left=True, known=[]) == {"4": 1, "5": 0}
+    assert pair_by_numbering(("2A", "3"), (0.0, 5.0), increases_left=True, known=[]) == {"2A": 0, "3": 1}
+
+
+def test_pair_by_numbering_rejects_numbers_that_do_not_fit_their_neighbours() -> None:
+    # 1 and 2 known to the west, growing eastwards: an island east of them
+    # tagged "1;2" again can't be right.
+    known = [(10.0, "1"), (5.0, "2")]
+    assert pair_by_numbering(("3", "4"), (0.0, -5.0), increases_left=False, known=known) == {"3": 0, "4": 1}
+    assert pair_by_numbering(("1", "2"), (0.0, -5.0), increases_left=False, known=known) is None
 
 
 def test_door_from_sides() -> None:

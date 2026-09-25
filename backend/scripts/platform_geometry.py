@@ -4,12 +4,13 @@ local metres (east, north)."""
 
 from __future__ import annotations
 
+import math
 import re
 from collections.abc import Collection, Iterable, Sequence
 from itertools import combinations
 from typing import Literal
 
-from shapely.geometry import LineString, Point, Polygon
+from shapely.geometry import LineString, MultiPoint, Point, Polygon
 
 Side = Literal["left", "right"]
 Door = Literal["left", "right", "both"]
@@ -42,6 +43,11 @@ _LINE_NAMES: tuple[tuple[str, LineCode], ...] = (
 NUMBERING_WINDOW_M = 40.0
 # Tracks closer than this across are the same track drawn as two ways.
 SAME_TRACK_M = 1.5
+# A point this close to a line is on it: neither left nor right.
+SIDE_TOLERANCE_M = 0.5
+# A track crossing a line square across the route at more than this angle
+# to the route is crossing it, not running alongside.
+PARALLEL_MAX_ANGLE_DEG = 30.0
 
 
 def track_corridor(name: str | None) -> TrackCorridor | None:
@@ -75,24 +81,35 @@ def platform_sort_key(number: str) -> tuple[int, str]:
     return (int(match.group(1)), match.group(2)) if match else (10**6, number)
 
 
-def side_of(line: LineString, point: tuple[float, float], forward: bool) -> Side:
+def side_of(line: LineString, point: tuple[float, float], forward: bool) -> Side | None:
     """Which side of `line` the point lies on, travelling along it
-    (forward: in the order of its coordinates)."""
+    (forward: in the order of its coordinates); None if it lies within
+    SIDE_TOLERANCE_M of the line, where the side is noise."""
     p = Point(point)
+    if line.distance(p) <= SIDE_TOLERANCE_M:
+        return None
     along = line.project(p)
     a = line.interpolate(max(along - 1.0, 0.0))
     b = line.interpolate(min(along + 1.0, line.length))
     cross = (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x)
+    if cross == 0:
+        return None
     left = cross > 0
     return "left" if left == forward else "right"
 
 
-def left_track(tracks: Sequence[LineString], forward: bool, station_point: tuple[float, float]) -> LineString:
+def left_track(
+    tracks: Sequence[LineString], forward: bool, station_point: tuple[float, float]
+) -> LineString | None:
     """Of a pair of parallel tracks, the one a train travelling `forward`
-    (in the first track's coordinate order) runs on: the left one."""
+    (in the first track's coordinate order) runs on: the left one. None if
+    they lie too close together to tell."""
     reference = tracks[0]
     for track in tracks[1:]:
-        if side_of(reference, _nearest_point(track, station_point), forward) == "left":
+        side = side_of(reference, _nearest_point(track, station_point), forward)
+        if side is None:
+            return None
+        if side == "left":
             return track
     return reference  # nothing lies to its left: it is the left one
 
@@ -121,8 +138,40 @@ def orient_along(line: LineString, tangent: tuple[float, float]) -> LineString:
 def offset_from(line: LineString, point: tuple[float, float]) -> float:
     """Signed distance of `point` from `line`: positive to the left
     travelling along it, so it follows the line round curves."""
-    distance = line.distance(Point(point))
-    return distance if side_of(line, point, forward=True) == "left" else -distance
+    side = side_of(line, point, forward=True)
+    if side is None:
+        return 0.0
+    distance = float(line.distance(Point(point)))
+    return distance if side == "left" else -distance
+
+
+def probe_offset(
+    lines: Sequence[LineString], origin: tuple[float, float], tangent: tuple[float, float], half_width: float
+) -> float | None:
+    """Where a track (its ways) crosses a line drawn square across the
+    route at `origin`: the signed offset along it, positive to the left of
+    `tangent` (a unit vector). The crossing nearest `origin` counts; one at
+    more than PARALLEL_MAX_ANGLE_DEG to the route doesn't. None if the
+    track doesn't cross it (it ends before the station)."""
+    nx, ny = -tangent[1], tangent[0]
+    ox, oy = origin
+    probe = LineString([(ox - nx * half_width, oy - ny * half_width), (ox + nx * half_width, oy + ny * half_width)])
+    min_cos = math.cos(math.radians(PARALLEL_MAX_ANGLE_DEG))
+    offsets: list[float] = []
+    for line in lines:
+        crossing = line.intersection(probe)
+        hits = crossing.geoms if isinstance(crossing, MultiPoint) else [crossing]
+        for hit in hits:
+            if not isinstance(hit, Point) or hit.is_empty:
+                continue
+            at = line.project(hit)
+            a = line.interpolate(max(at - 3.0, 0.0))
+            b = line.interpolate(min(at + 3.0, line.length))
+            length = math.hypot(b.x - a.x, b.y - a.y)
+            if length == 0 or abs((b.x - a.x) * tangent[0] + (b.y - a.y) * tangent[1]) / length < min_cos:
+                continue
+            offsets.append((hit.x - ox) * nx + (hit.y - oy) * ny)
+    return min(offsets, key=abs) if offsets else None
 
 
 def numbering_increases_left(known: Sequence[tuple[float, str]], near: float) -> bool | None:
@@ -147,17 +196,38 @@ def numbering_increases_left(known: Sequence[tuple[float, str]], near: float) ->
     return signs.pop() if len(signs) == 1 else None
 
 
+def _fits_numbering(
+    number: str, at: float, known: Sequence[tuple[float, str]], increases_left: bool
+) -> bool:
+    """Whether `number` on the track at offset `at` fits the known numbers
+    nearby: lower ones on the side numbering comes from, higher ones on
+    the other."""
+    key = platform_sort_key(number)
+    for offset, other in known:
+        if abs(offset - at) > NUMBERING_WINDOW_M or abs(offset - at) <= SAME_TRACK_M:
+            continue
+        on_lower_side = (offset > at) != increases_left
+        if (platform_sort_key(other) < key) != on_lower_side:
+            return False
+    return True
+
+
 def pair_by_numbering(
-    numbers: tuple[str, str], offsets: tuple[float, float], increases_left: bool
-) -> dict[str, int]:
+    numbers: tuple[str, str],
+    offsets: tuple[float, float],
+    increases_left: bool,
+    known: Sequence[tuple[float, str]],
+) -> dict[str, int] | None:
     """Which of two tracks (by index into `offsets`) each of an island
-    platform's two numbers belongs to, given the numbering direction."""
+    platform's two numbers belongs to, given the numbering direction; None
+    if either number doesn't fit the known numbers around it."""
     low, high = sorted(numbers, key=platform_sort_key)
     left_index = 0 if offsets[0] > offsets[1] else 1
     right_index = 1 - left_index
-    if increases_left:
-        return {low: right_index, high: left_index}
-    return {low: left_index, high: right_index}
+    assignment = {low: right_index, high: left_index} if increases_left else {low: left_index, high: right_index}
+    if all(_fits_numbering(number, offsets[index], known, increases_left) for number, index in assignment.items()):
+        return assignment
+    return None
 
 
 def place_by_numbering(number: str, offsets: tuple[float, float], known: Sequence[tuple[float, str]]) -> int | None:
@@ -170,15 +240,7 @@ def place_by_numbering(number: str, offsets: tuple[float, float], known: Sequenc
         return None
     left_index = 0 if offsets[0] > offsets[1] else 1
     index = 1 - left_index if increases_left else left_index
-    at = offsets[index]
-    key = platform_sort_key(number)
-    for offset, other in known:
-        if abs(offset - at) > NUMBERING_WINDOW_M or abs(offset - at) <= SAME_TRACK_M:
-            continue
-        on_lower_side = (offset > at) != increases_left
-        if (platform_sort_key(other) < key) != on_lower_side:
-            return None
-    return index
+    return index if _fits_numbering(number, offsets[index], known, increases_left) else None
 
 
 def door_from_sides(sides: Collection[Side]) -> Door | None:

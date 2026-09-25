@@ -3,6 +3,7 @@ and the best available time (observed arrival, or expected given the
 current delay)."""
 
 from app.schemas.train import StopState, StopTime
+from app.services.platforms import platform_out
 from app.services.position_processor import TrainContext, station_out
 
 
@@ -37,6 +38,7 @@ def build_timeline(context: TrainContext) -> list[StopTime]:
                 scheduled_epoch=scheduled,
                 expected_epoch=expected,
                 observed_arrival_epoch=observed,
+                platform=platform_out(stop.platform),
             )
         )
     return stops

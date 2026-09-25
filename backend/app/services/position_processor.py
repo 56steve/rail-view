@@ -23,6 +23,7 @@ from types import MappingProxyType
 
 from app.schemas.station import StationOut, StationRef
 from app.schemas.train import TrainPositionUpdate
+from app.services.platforms import PlatformAssignment
 from app.services.simulator.schedule import ScheduledStop
 from app.services.telemetry import ActiveRun, RawFix, ScheduleProvider
 from app.services.track_filter import TrackFilter
@@ -167,6 +168,7 @@ class PositionProcessor:
         eta_seconds = (
             max(0.0, context.expected_epoch(next_stop) - fix.timestamp_s) if next_stop is not None else None
         )
+        next_platform: PlatformAssignment | None = next_stop.platform if next_stop is not None else None
         return TrainPositionUpdate(
             train_id=fix.train_id,
             train_type=plan.train_type,
@@ -180,6 +182,9 @@ class PositionProcessor:
             destination=station_ref(plan.destination),
             current_station=station_ref(current_stop.station) if current_stop is not None else None,
             next_station=station_ref(next_stop.station) if next_stop is not None else None,
+            next_platform=",".join(next_platform.numbers) if next_platform is not None else None,
+            next_platform_certain=next_platform.certain if next_platform is not None else False,
+            next_platform_door=next_platform.door if next_platform is not None else None,
             direction_forward=direction_forward,
             direction_label=f"{plan.origin.station.name} → {plan.destination.station.name}",
             lat=lat,
