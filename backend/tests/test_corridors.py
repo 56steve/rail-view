@@ -79,6 +79,17 @@ def test_section_passing_only_fast_halts_inherits_a_preceding_fast_section() -> 
     )
 
 
+def test_section_skipping_a_fast_halt_keeps_the_track_pair_it_came_on() -> None:
+    # Like Vasai Road -> Virar past Nallasopara: A->B skips slow-only X
+    # (fast), then B->D passes C, a fast halt the train doesn't call at.
+    # That says nothing about the pair, so it stays on the fast one.
+    route = ("A", "X", "B", "C", "D")
+    fast_halts = frozenset({"A", "B", "C", "D"})
+    assert stop_corridors(route, fast_halts, ("A", "B", "D"), single_pair=frozenset()) == (
+        "fast", "fast", "fast",
+    )
+
+
 def test_single_stop_is_any() -> None:
     assert stop_corridors(ROUTE, FAST_HALTS, ("C",), single_pair=frozenset()) == ("any",)
 
