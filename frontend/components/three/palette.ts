@@ -27,6 +27,15 @@ export type LandcoverClass = (typeof LANDCOVER_CLASSES)[number];
 export const ROAD_CLASSES = ["motorway", "trunk", "primary", "secondary", "tertiary", "minor"] as const;
 export type RoadClass = (typeof ROAD_CLASSES)[number];
 
+/** Close-up track. Ballast is a tint over a neutral stone texture. */
+export interface TrackPalette {
+  ballast: string;
+  sleeper: string;
+  rail: string;
+  railHead: string;
+  fastening: string;
+}
+
 export interface ScenePalette {
   background: string;
   fog: string;
@@ -39,6 +48,7 @@ export interface ScenePalette {
   buildingTop: string;
   roof: string;
   platform: string;
+  track: TrackPalette;
   skyLight: string;
   groundLight: string;
   hemisphereIntensity: number;
@@ -77,6 +87,13 @@ const NIGHT: ScenePalette = {
   buildingTop: "#323B4C",
   roof: "#3D4659",
   platform: "#8C939E",
+  track: {
+    ballast: "#6F6A64",
+    sleeper: "#7A7874",
+    rail: "#4A3A30",
+    railHead: "#B9C0C8",
+    fastening: "#202328",
+  },
   skyLight: "#9FB3D9",
   groundLight: "#0B0E14",
   hemisphereIntensity: 0.75,
@@ -115,6 +132,13 @@ const DAY: ScenePalette = {
   buildingTop: "#EDE9E2",
   roof: "#F3F0EA",
   platform: "#B8B1A5",
+  track: {
+    ballast: "#A39A8E",
+    sleeper: "#A9A59E",
+    rail: "#7A5641",
+    railHead: "#E6EAEE",
+    fastening: "#2E3136",
+  },
   skyLight: "#E4EEF8",
   groundLight: "#B5AC9C",
   hemisphereIntensity: 1.1,

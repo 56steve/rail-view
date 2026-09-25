@@ -38,3 +38,6 @@ postgres-data/
 
 # Raw OpenStreetMap responses cached by backend/scripts/build_osm_data.py
 .osm-cache/
+
+# Brainstorming companion mockups
+.superpowers/

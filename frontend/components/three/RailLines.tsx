@@ -10,7 +10,10 @@ import type { ScenePoint } from "@/lib/geo";
 import { routeSpans } from "@/lib/network";
 import { loadRailLayout, type RailLayout } from "@/lib/railLayout";
 import { useRailView } from "@/lib/store";
+import { FORMATION_Y, RAIL_TOP_Y } from "@/lib/trackDetail/profiles";
+import { GROUND_TOP_Y } from "./groundOrder";
 import { usePalette } from "./palette";
+import { TrackDetail } from "./TrackDetail";
 import {
   SINGLE_TRACK_BED_WIDTH_M,
   extrudedFootprintsGeometry,
@@ -19,12 +22,15 @@ import {
 } from "./trackGeometry";
 
 const GLOW_Y = 7;
-const TRACK_BED_Y = 0.4;
-// Beds of converging tracks overlap at turnouts; staggering their heights
-// by a few centimetres stops the overlaps from z-fighting.
-const TRACK_BED_Y_STEP = 0.025;
+// The flat ribbon is the far layer of track. It sits above the ground
+// layers but below the foot of TrackDetail's 3D bed (FORMATION_Y), so close
+// up the bed covers it completely. Beds of converging tracks overlap at
+// turnouts; staggering their heights by a few millimetres within that gap
+// stops the overlaps from z-fighting.
 const TRACK_BED_Y_LEVELS = 4;
-const PLATFORM_HEIGHT_M = 0.9;
+const TRACK_BED_Y_STEP = (FORMATION_Y - GROUND_TOP_Y) / (TRACK_BED_Y_LEVELS + 1);
+// Mumbai's suburban platforms stand about 0.9 m above rail level.
+const PLATFORM_HEIGHT_M = RAIL_TOP_Y + 0.9;
 // Below this camera height the physical track reads on its own and the
 // route glow fades so it doesn't paint over the rails.
 const GLOW_FADE_START_M = 2500;
@@ -73,7 +79,11 @@ function PhysicalRailway() {
   const beds = useMemo(() => {
     if (!layout || layout.tracks.length === 0) return null;
     const parts = layout.tracks.map((track, i) =>
-      ribbonGeometry(track, SINGLE_TRACK_BED_WIDTH_M, TRACK_BED_Y + (i % TRACK_BED_Y_LEVELS) * TRACK_BED_Y_STEP),
+      ribbonGeometry(
+        track,
+        SINGLE_TRACK_BED_WIDTH_M,
+        GROUND_TOP_Y + (1 + (i % TRACK_BED_Y_LEVELS)) * TRACK_BED_Y_STEP,
+      ),
     );
     const merged = mergeGeometries(parts);
     for (const part of parts) part.dispose();
@@ -98,9 +108,10 @@ function PhysicalRailway() {
 
   return (
     <group ref={group}>
+      {layout && layout.tracks.length > 0 && <TrackDetail tracks={layout.tracks} />}
       {beds && (
         <mesh geometry={beds}>
-          <meshStandardMaterial map={texture} roughness={0.95} />
+          <meshStandardMaterial map={texture} color={palette.track.ballast} roughness={0.95} />
         </mesh>
       )}
       {platforms && (

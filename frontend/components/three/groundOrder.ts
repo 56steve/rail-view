@@ -9,3 +9,9 @@ export const GROUND_ORDER = {
   inlandWater: -15,
   roads: -10, // + position, minor roads lowest
 } as const;
+
+/** Height of the highest flat ground layer (roads). Anything that has to
+ * show over the ground - the track bed, say - stands above it: land cover,
+ * water and roads are transparent, so they're drawn after everything
+ * opaque and cover whatever is lower. */
+export const GROUND_TOP_Y = 0.1;
