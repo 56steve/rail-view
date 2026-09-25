@@ -8,7 +8,9 @@ every tick.
 Each client has its own sender task holding only the newest snapshot. A
 client on a slow connection skips the snapshots it couldn't take in time
 instead of delaying everyone else's, and it never builds up a backlog:
-positions only matter while they're current.
+positions only matter while they're current. Each client gets the wire
+format it asked for (see app.services.live_wire); a snapshot encodes each
+format once, however many clients want it.
 """
 
 from __future__ import annotations
@@ -16,30 +18,45 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+from typing import Protocol
 
 from fastapi import WebSocket
+
+from app.services.live_wire import WireFormat
 
 logger = logging.getLogger(__name__)
 
 
+class Broadcast(Protocol):
+    """One tick's snapshot, in whichever format a client takes."""
+
+    def payload(self, wire: WireFormat) -> str | bytes: ...
+
+
 class _Client:
-    def __init__(self, websocket: WebSocket) -> None:
+    def __init__(self, websocket: WebSocket, wire: WireFormat) -> None:
         self.websocket = websocket
-        self.latest: str | None = None
+        self.wire = wire
+        self.latest: Broadcast | None = None
         self.ready = asyncio.Event()
         self.sender: asyncio.Task[None] | None = None
 
-    def offer(self, payload: str) -> None:
-        """Make `payload` the next thing sent, replacing any unsent one."""
-        self.latest = payload
+    def offer(self, snapshot: Broadcast) -> None:
+        """Make `snapshot` the next thing sent, replacing any unsent one."""
+        self.latest = snapshot
         self.ready.set()
 
     async def send_forever(self) -> None:
         while True:
             await self.ready.wait()
             self.ready.clear()
-            payload, self.latest = self.latest, None
-            if payload is not None:
+            snapshot, self.latest = self.latest, None
+            if snapshot is None:
+                continue
+            payload = snapshot.payload(self.wire)
+            if isinstance(payload, bytes):
+                await self.websocket.send_bytes(payload)
+            else:
                 await self.websocket.send_text(payload)
 
 
@@ -47,12 +64,12 @@ class ConnectionManager:
     def __init__(self) -> None:
         self._clients: dict[WebSocket, _Client] = {}
 
-    async def connect(self, websocket: WebSocket, initial_payload: str) -> None:
-        """Accept `websocket` and send it `initial_payload` straight away,
-        so a new client sees trains without waiting for the next tick."""
+    async def connect(self, websocket: WebSocket, initial: Broadcast, wire: WireFormat) -> None:
+        """Accept `websocket` and send it `initial` straight away, so a
+        new client sees trains without waiting for the next tick."""
         await websocket.accept()
-        client = _Client(websocket)
-        client.offer(initial_payload)
+        client = _Client(websocket, wire)
+        client.offer(initial)
         client.sender = asyncio.create_task(self._run_sender(client))
         self._clients[websocket] = client
 
@@ -64,10 +81,10 @@ class ConnectionManager:
         with contextlib.suppress(asyncio.CancelledError):
             await client.sender
 
-    def broadcast(self, payload: str) -> None:
-        """Queue `payload` for every client. Never waits on the network."""
+    def broadcast(self, snapshot: Broadcast) -> None:
+        """Queue `snapshot` for every client. Never waits on the network."""
         for client in self._clients.values():
-            client.offer(payload)
+            client.offer(snapshot)
 
     async def _run_sender(self, client: _Client) -> None:
         try:

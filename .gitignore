@@ -41,3 +41,6 @@ postgres-data/
 
 # Brainstorming companion mockups
 .superpowers/
+
+# Build intermediate of backend/scripts/build_platforms.py
+backend/data/platforms/derived.json

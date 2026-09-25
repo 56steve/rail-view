@@ -13,14 +13,17 @@ class SnapshotTableMessage(BaseModel):
 
     It goes to every client every second, so it's laid out to be small:
     `fields` names the columns once, each row in `trains` holds one
-    TrainPositionUpdate's values in that order, and station fields hold
-    a station code whose name is in `stations`. Clients rebuild the
+    train's values in that order, and station fields hold a station code
+    whose name is in `stations` (see app.services.live_wire). Clients rebuild the
     positions (`frontend/lib/liveWire.ts`), replace their train set with
     them and interpolate motion between successive snapshots.
     """
 
     type: Literal["snapshot.table"] = "snapshot.table"
     server_time_epoch: float
+    # False: only the fields that change during a run (positions, delays,
+    # ETAs); the rest arrive in the next full snapshot.
+    full: bool = True
     fields: list[str]
     stations: dict[str, str]
     trains: list[list[Cell]]

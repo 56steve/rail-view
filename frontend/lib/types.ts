@@ -79,9 +79,6 @@ export interface TrainPositionUpdate {
   next_station: StationRef | null;
   direction_forward: boolean;
   direction_label: string;
-  lat: number;
-  lon: number;
-  heading_deg: number;
   chainage_m: number;
   speed_kmh: number;
   delay_seconds: number;
@@ -154,9 +151,13 @@ export type SnapshotCell = string | number | boolean | null;
 export interface SnapshotTableMessage {
   type: "snapshot.table";
   server_time_epoch: number;
+  /** False: only the fields that change during a run; the rest came in
+   * the last full snapshot. Absent from servers before this flag. */
+  full?: boolean;
   fields: string[];
   stations: Record<string, string>;
   trains: SnapshotCell[][];
 }
 
-export type ConnectionStatus = "connecting" | "live" | "reconnecting";
+/** "paused": the app is in the background, so it isn't receiving trains. */
+export type ConnectionStatus = "connecting" | "live" | "reconnecting" | "paused";
