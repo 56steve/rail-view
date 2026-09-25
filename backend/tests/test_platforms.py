@@ -164,3 +164,13 @@ def test_load_platform_table_string_numbers_raises(tmp_path: Path) -> None:
     path.write_text(json.dumps(bad))
     with pytest.raises(PlatformDataError):
         load_platform_table(path)
+
+
+def test_load_platform_table_keeps_a_withheld_station_with_no_platforms(tmp_path: Path) -> None:
+    table_json = json.loads(json.dumps(GOOD_TABLE))
+    table_json["stations"].append({"line_code": "HR", "station": "Sanpada", "platforms": []})
+    path = tmp_path / "platforms.json"
+    path.write_text(json.dumps(table_json))
+    table = load_platform_table(path)
+    assert ("HR", "Sanpada") in table.stations
+    assert table.entries("HR", "Sanpada") == ()

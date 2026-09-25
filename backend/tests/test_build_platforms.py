@@ -115,13 +115,42 @@ def test_curated_stations_replace_derived_ones_wholesale() -> None:
 
 
 def test_disagreements_flag_swapped_directions() -> None:
-    # Sanpada (Harbour): OSM stop positions put 3 on the Panvel-bound track.
+    # Were Sanpada (Harbour) curated from Wikipedia, which reverses OSM's
+    # 3 = Panvel-bound, 4 = CSMT-bound, both directions would be flagged.
     osm = {("HR", "Sanpada"): derived("HR", "Sanpada", [entry(["3"], "any", "DN"), entry(["4"], "any", "UP")])}
     hand = {("HR", "Sanpada"): curated("HR", "Sanpada", [entry(["4"], "any", "DN"), entry(["3"], "any", "UP")])}
     assert disagreements(osm, hand) == [
         "HR Sanpada: any DN: OSM has PF 3, curated has PF 4",
         "HR Sanpada: any UP: OSM has PF 4, curated has PF 3",
     ]
+
+
+def test_a_withheld_station_is_reported_with_what_osm_would_have_shown() -> None:
+    osm = {("HR", "Sanpada"): derived("HR", "Sanpada", [entry(["3"], "any", "DN"), entry(["4"], "any", "UP")])}
+    hand = {("HR", "Sanpada"): curated("HR", "Sanpada", [])}
+    assert disagreements(osm, hand) == ["HR Sanpada: withheld by curation; OSM has any DN PF 3, any UP PF 4"]
+
+
+def test_a_withheld_station_stays_in_the_merge_with_no_platforms() -> None:
+    sites = [site("HR", "Sanpada", single_pair=True)]
+    osm = {("HR", "Sanpada"): derived("HR", "Sanpada", [entry(["3"], "any", "DN")])}
+    hand = {("HR", "Sanpada"): curated("HR", "Sanpada", [])}
+    merged = merge_tables(sites, osm, hand)
+    assert merged[("HR", "Sanpada")]["source"] == "curated"
+    assert merged[("HR", "Sanpada")]["platforms"] == []
+
+
+def test_curated_station_may_be_withheld_with_an_empty_platform_list(tmp_path: Path) -> None:
+    path = _write_curated(
+        tmp_path, [{"line_code": "HR", "station": "Sanpada", "source": "OSM and Wikipedia disagree", "platforms": []}]
+    )
+    stations = load_curated(path, [site("HR", "Sanpada", single_pair=True)])
+    assert stations[("HR", "Sanpada")]["platforms"] == []
+
+
+def test_the_curated_file_withholds_harbour_sanpada() -> None:
+    sites = station_sites(json.loads(NETWORK_OUT.read_text()))
+    assert load_curated(CURATED_IN, sites)[("HR", "Sanpada")]["platforms"] == []
 
 
 def test_disagreements_accept_a_curated_entry_listing_more_numbers() -> None:

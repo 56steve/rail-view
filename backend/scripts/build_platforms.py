@@ -988,8 +988,11 @@ def print_coverage(sites: Sequence[StationSite], stations: Mapping[tuple[str, st
         station = stations.get((site.line_code, site.station))
         platforms = station["platforms"] if station else []
         category, status = coverage_status(site, platforms)
+        withheld = station is not None and not platforms and station["source"] == "curated"
+        if withheld:
+            status = "none (withheld)"
         totals[category] += 1
-        source = f" [{station['source']}]" if station and platforms else ""
+        source = f" [{station['source']}]" if station and (platforms or withheld) else ""
         print(f"    {site.station:<24} {status}{source}")
     print(f"\n  totals: {totals['full']} full, {totals['partial']} partial, {totals['none']} none")
 
@@ -1013,7 +1016,9 @@ def print_unresolved(stations: Mapping[tuple[str, str], DerivedStationJson]) -> 
 def load_curated(path: Path, sites: Sequence[StationSite]) -> dict[tuple[str, str], StationTable]:
     """The curated stations, keyed (line, station). Each must be a station
     of its line in network.json and cite a source; the entries themselves
-    are checked by the app's loader once merged."""
+    are checked by the app's loader once merged. An empty platform list
+    withholds the station: known, but deliberately without platforms
+    (its source says why)."""
     try:
         raw = json.loads(path.read_text())
     except (FileNotFoundError, json.JSONDecodeError) as exc:
@@ -1036,8 +1041,8 @@ def load_curated(path: Path, sites: Sequence[StationSite]) -> dict[tuple[str, st
             raise BuildError(f"{path}: {key} is listed twice")
         if not isinstance(source, str) or not source.strip():
             raise BuildError(f"{path}: {key} has no source")
-        if not isinstance(platforms, list) or not platforms:
-            raise BuildError(f"{path}: {key} has no platforms")
+        if not isinstance(platforms, list):
+            raise BuildError(f"{path}: {key} platforms must be a list")
         curated[key] = StationTable(line_code=key[0], station=key[1], source=source, platforms=platforms)
     return curated
 
@@ -1048,7 +1053,9 @@ def merge_tables(
     curated: Mapping[tuple[str, str], StationTable],
 ) -> dict[tuple[str, str], StationTable]:
     """Derived stations, each replaced wholesale by its curated one, in
-    line then route order; stations with no entries are left out."""
+    line then route order. Derived stations with no entries are left out;
+    a curated one with none stays in, so a withheld station shows no
+    platform rather than OSM's."""
     merged: dict[tuple[str, str], StationTable] = {}
     for site in sites:
         key = (site.line_code, site.station)
@@ -1074,6 +1081,13 @@ def disagreements(
     that can't both hold."""
     notes: list[str] = []
     for key, station in curated.items():
+        if not station["platforms"]:
+            if derived[key]["platforms"]:
+                withheld = ", ".join(
+                    f"{e['corridor']} {e['direction']} PF {'/'.join(e['numbers'])}" for e in derived[key]["platforms"]
+                )
+                notes.append(f"{key[0]} {key[1]}: withheld by curation; OSM has {withheld}")
+            continue
         for osm_entry in derived[key]["platforms"]:
             facing = [
                 entry

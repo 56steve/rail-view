@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-09-25T12:23:40+00:00",
+ "generated_at": "2026-09-25T13:11:01+00:00",
  "attribution": "© OpenStreetMap contributors (ODbL); curated entries cite their sources in backend/data/platforms/curated.json",
  "single_pair": [
   [
@@ -2546,29 +2546,8 @@
   {
    "line_code": "HR",
    "station": "Sanpada",
-   "source": "osm",
-   "platforms": [
-    {
-     "numbers": [
-      "3"
-     ],
-     "corridor": "any",
-     "direction": "DN",
-     "role": "through",
-     "door": "both",
-     "certain": true
-    },
-    {
-     "numbers": [
-      "4"
-     ],
-     "corridor": "any",
-     "direction": "UP",
-     "role": "through",
-     "door": "both",
-     "certain": true
-    }
-   ]
+   "source": "curated",
+   "platforms": []
   },
   {
    "line_code": "HR",

@@ -545,6 +545,12 @@
   },
   {
    "line_code": "HR",
+   "station": "Sanpada",
+   "source": "Withheld until verified on the ground: OpenStreetMap and Wikipedia disagree on which way Harbour platforms 3 and 4 run. OpenStreetMap puts 3 on the Panvel-bound track and 4 on the CSMT-bound one: its stop positions (ref 3 and 4), its track names (\"Harbour Line (Belapur, Panvel)\" / \"Harbour Line (CSMT, Vadala, Goregaon)\") and left-hand running all agree. https://en.wikipedia.org/wiki/Sanpada_railway_station (platforms: PF 3 towards CSMT/Goregaon, PF 4 towards Panvel, revision of 2026-08-23, retrieved 2026-09-25) says the reverse.",
+   "platforms": []
+  },
+  {
+   "line_code": "HR",
    "station": "Juinagar",
    "source": "https://en.wikipedia.org/wiki/Juinagar_railway_station (platforms: PF 3 towards Panvel, PF 4 towards Goregaon/CSMT, revision of 2026-08-18, retrieved 2026-09-25); door sides: OpenStreetMap platform areas beside each track (scripts/build_platforms.py, 2026-09-25)",
    "platforms": [
