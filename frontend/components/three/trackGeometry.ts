@@ -163,7 +163,9 @@ export function extrudedFootprintsGeometry(rings: Point2[][], height: number): T
 }
 
 /** Ballast, sleepers and one broad-gauge (1676mm) track across the
- * ribbon; one texture repeat = TEXTURE_REPEAT_M metres along it. */
+ * ribbon; one texture repeat = TEXTURE_REPEAT_M metres along it. Drawn in
+ * light neutral greys and tinted by the material colour, so the far ribbon
+ * matches the close-up ballast it takes over from. */
 export function trackBedTexture(): THREE.CanvasTexture {
   const width = 64;
   const height = 128;
@@ -174,31 +176,107 @@ export function trackBedTexture(): THREE.CanvasTexture {
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("2D canvas unavailable for track texture");
 
-  ctx.fillStyle = "#3A3D43";
+  ctx.fillStyle = "#AAA9A6";
   ctx.fillRect(0, 0, width, height);
   // Deterministic speckle so the ballast doesn't look flat.
   let seed = 7;
   const random = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
   for (let i = 0; i < 700; i++) {
-    const shade = 44 + Math.floor(random() * 40);
-    ctx.fillStyle = `rgb(${shade},${shade},${shade + 4})`;
+    const shade = 130 + Math.floor(random() * 80);
+    ctx.fillStyle = `rgb(${shade},${shade},${shade - 3})`;
     ctx.fillRect(random() * width, random() * height, 1.2, 1.2);
   }
 
   const gauge = 1.676;
   const pxPerMAlong = height / TEXTURE_REPEAT_M;
   const cx = width / 2;
-  ctx.fillStyle = "#4B4038";
+  ctx.fillStyle = "#D6D4D0";
   for (let s = 0; s < TEXTURE_REPEAT_M; s += 0.66) {
     ctx.fillRect(cx - 1.4 * pxPerM, s * pxPerMAlong, 2.8 * pxPerM, 0.25 * pxPerMAlong);
   }
-  ctx.fillStyle = "#C9CED6";
+  ctx.fillStyle = "#F4F5F7";
   for (const side of [-gauge / 2, gauge / 2]) {
     ctx.fillRect(cx + side * pxPerM - 0.6, 0, 1.2, height);
   }
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = THREE.ClampToEdgeWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = 8;
+  return texture;
+}
+
+/** Metres of ballast per repeat of `ballastTexture`, across and along. */
+export const BALLAST_TEXTURE_M = 1.5;
+
+/**
+ * Loose ballast stone for the close-up track bed: a seamlessly tiling
+ * 512px canvas, one repeat per BALLAST_TEXTURE_M. Drawn in neutral light
+ * greys with a faint warm/cool spread, so the material colour sets the
+ * day or night tone. Deterministic, so every load looks the same.
+ */
+export function ballastTexture(): THREE.CanvasTexture {
+  const size = 512;
+  const pxPerM = size / BALLAST_TEXTURE_M;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("2D canvas unavailable for ballast texture");
+
+  // The dark gaps between stones.
+  ctx.fillStyle = "#5C5956";
+  ctx.fillRect(0, 0, size, size);
+
+  let seed = 20_231;
+  const random = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
+  const outline: number[] = [];
+  const fillStone = (x: number, y: number, scale: number): void => {
+    ctx.beginPath();
+    ctx.moveTo(x + outline[0]! * scale, y + outline[1]! * scale);
+    for (let k = 2; k < outline.length; k += 2) ctx.lineTo(x + outline[k]! * scale, y + outline[k + 1]! * scale);
+    ctx.closePath();
+    ctx.fill();
+  };
+  for (let i = 0; i < 2400; i++) {
+    // Crushed stone of roughly 30-65 mm, as irregular polygons.
+    const cx = random() * size;
+    const cy = random() * size;
+    const radius = (0.015 + random() * 0.018) * pxPerM;
+    const turn = random() * Math.PI * 2;
+    const corners = 5 + Math.floor(random() * 3);
+    outline.length = 0;
+    for (let k = 0; k < corners; k++) {
+      const a = turn + (k / corners) * Math.PI * 2;
+      const r = radius * (0.7 + random() * 0.45);
+      outline.push(Math.cos(a) * r, Math.sin(a) * r);
+    }
+    const shade = 150 + Math.floor(random() * 85);
+    const warmth = Math.floor(random() * 14) - 5;
+    const body = `rgb(${shade + warmth},${shade},${shade - warmth})`;
+    const lit = `rgb(${Math.min(shade + 34, 255)},${Math.min(shade + 32, 255)},${Math.min(shade + 30, 255)})`;
+
+    // Draw the stone again across any edge it overlaps, so the tile wraps.
+    for (const ox of [-size, 0, size]) {
+      if (cx + ox + radius * 1.3 < 0 || cx + ox - radius * 1.3 > size) continue;
+      for (const oy of [-size, 0, size]) {
+        if (cy + oy + radius * 1.3 < 0 || cy + oy - radius * 1.3 > size) continue;
+        const x = cx + ox;
+        const y = cy + oy;
+        // Shadow falling down-right, the stone, then a lit face up-left.
+        ctx.fillStyle = "rgba(20,18,16,0.45)";
+        fillStone(x + radius * 0.18, y + radius * 0.22, 1);
+        ctx.fillStyle = body;
+        fillStone(x, y, 1);
+        ctx.fillStyle = lit;
+        fillStone(x - radius * 0.2, y - radius * 0.22, 0.5);
+      }
+    }
+  }
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.RepeatWrapping;
   texture.wrapT = THREE.RepeatWrapping;
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.anisotropy = 8;

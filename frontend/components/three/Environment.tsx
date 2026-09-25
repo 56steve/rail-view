@@ -11,7 +11,7 @@ import {
   type RoadData,
 } from "@/lib/environment";
 import { edgeFadeMaterial } from "./edgeFadeMaterial";
-import { GROUND_ORDER } from "./groundOrder";
+import { GROUND_ORDER, GROUND_TOP_Y } from "./groundOrder";
 import { LANDCOVER_CLASSES, ROAD_CLASSES, usePalette, type RoadClass } from "./palette";
 import { flatRibbonsGeometry } from "./trackGeometry";
 
@@ -19,7 +19,7 @@ import { flatRibbonsGeometry } from "./trackGeometry";
 // their data, blending into plain land.
 const EDGE_FADE_M = 7000;
 const LANDCOVER_Y = 0.03;
-const ROAD_Y = 0.1;
+const ROAD_Y = GROUND_TOP_Y;
 
 const ROAD_WIDTH_M: Record<RoadClass, number> = {
   motorway: 24,

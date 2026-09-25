@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { Suspense, useMemo } from "react";
 import { Canvas } from "@react-three/fiber";
 import * as THREE from "three";
 import { useRailView } from "@/lib/store";
@@ -61,7 +61,9 @@ export function Scene() {
       <Environment />
       <City />
       <RailLines />
-      <Trains />
+      <Suspense fallback={null}>
+        <Trains />
+      </Suspense>
       <CameraRig />
       <OverlayProjector />
     </Canvas>
