@@ -22,6 +22,7 @@ from dataclasses import dataclass, field
 from datetime import date
 from typing import Literal
 
+from app.services.platforms import PlatformAssignment
 from app.services.simulator.physics import (
     cruise_for_leg_time,
     leg_run_time_s,
@@ -58,6 +59,9 @@ class ScheduledStop:
     # can differ from it slightly where the plan had to absorb minute
     # rounding (see timetable_run_plan).
     published_s: float | None = None
+    # Where it calls, if the station's platforms are known. Only set by
+    # timetable_run_plan; synthetic plans (build_run_plan) have none.
+    platform: PlatformAssignment | None = None
 
     @property
     def scheduled_departure_s(self) -> float:
@@ -165,7 +169,15 @@ def timetable_run_plan(train: TimetabledTrain, route: RailwayRoute, service_date
     origin_departure_s = train.first_departure_min * 60.0
     last = len(train.stops) - 1
 
-    stops = [ScheduledStop(station=stations[0], scheduled_arrival_s=0.0, dwell_s=0.0, published_s=0.0)]
+    stops = [
+        ScheduledStop(
+            station=stations[0],
+            scheduled_arrival_s=0.0,
+            dwell_s=0.0,
+            published_s=0.0,
+            platform=train.stops[0].platform,
+        )
+    ]
     cruises: list[float] = []
     for i in range(1, len(train.stops)):
         stop = train.stops[i]
@@ -197,7 +209,13 @@ def timetable_run_plan(train: TimetabledTrain, route: RailwayRoute, service_date
             dwell_s = dwell_s - min(behind_s, dwell_s - MIN_DWELL_S) if behind_s > 0 else dwell_s - behind_s
         cruises.append(cruise_for_leg_time(leg_m, run_s))
         stops.append(
-            ScheduledStop(station=stations[i], scheduled_arrival_s=arrival_s, dwell_s=dwell_s, published_s=published_s)
+            ScheduledStop(
+                station=stations[i],
+                scheduled_arrival_s=arrival_s,
+                dwell_s=dwell_s,
+                published_s=published_s,
+                platform=stop.platform,
+            )
         )
 
     return TrainRunPlan(

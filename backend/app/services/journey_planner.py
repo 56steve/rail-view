@@ -16,6 +16,7 @@ from collections.abc import Collection, Mapping
 from app.data.mumbai_network import load_lines, load_routes
 from app.schemas.journey import JourneyOption, JourneyPlan, JourneySort
 from app.schemas.station import StationIndexEntry
+from app.services.platforms import platform_out
 from app.services.position_processor import TrainContext
 from app.services.station_index import route_station_ids, station_index
 from app.services.timetable import (
@@ -105,6 +106,8 @@ def plan_journey(
                         duration_seconds=alight_expected - board_expected,
                         delay_seconds=round(delay_s),
                         intermediate_stops=alight - board - 1,
+                        board_platform=platform_out(train.stops[board].platform),
+                        alight_platform=platform_out(train.stops[alight].platform),
                     )
                 )
 

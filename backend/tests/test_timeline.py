@@ -1,5 +1,6 @@
 import pytest
 
+from app.services.platforms import PlatformAssignment
 from app.services.timeline import build_timeline
 
 
@@ -38,3 +39,14 @@ def test_timeline_follows_travel_order_for_reverse_runs(network) -> None:
     assert timeline[-1].station.name == "CSMT"
     scheduled = [s.scheduled_epoch for s in timeline]
     assert scheduled == sorted(scheduled)
+
+
+def test_timeline_carries_each_stops_platform(network) -> None:
+    network.place("T1", "WR-VR", "SLOW", forward=True, at_fraction=0.3)
+    context = network.processor.context("T1")
+    stop = context.run.plan.stops[2]
+    object.__setattr__(stop, "platform", PlatformAssignment(numbers=("3",), door="left", certain=True))
+    timeline = build_timeline(context)
+    assert timeline[2].platform is not None
+    assert timeline[2].platform.numbers == ["3"]
+    assert timeline[2].platform.door == "left"

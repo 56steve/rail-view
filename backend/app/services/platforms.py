@@ -18,6 +18,8 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Literal, get_args
 
+from app.schemas.train import PlatformOut
+
 Corridor = Literal["slow", "fast", "any"]
 Direction = Literal["UP", "DN"]
 StopRole = Literal["originating", "through", "terminating"]
@@ -104,6 +106,14 @@ def resolve_platform(
         door=doors.pop() if len(doors) == 1 else None,
         certain=certain_eligible and len(matches) == 1 and matches[0].certain,
     )
+
+
+def platform_out(assignment: PlatformAssignment | None) -> PlatformOut | None:
+    """The API/wire representation of a resolved platform, or None if the
+    stop has none."""
+    if assignment is None:
+        return None
+    return PlatformOut(numbers=list(assignment.numbers), door=assignment.door, certain=assignment.certain)
 
 
 @dataclass(frozen=True, slots=True)

@@ -140,3 +140,11 @@ def test_same_station_has_no_options() -> None:
 def test_unknown_station_raises() -> None:
     with pytest.raises(UnknownStationError):
         plan("atlantis", "dadar", WEDNESDAY_0830)
+
+
+def test_options_carry_board_and_alight_platforms() -> None:
+    result = plan("dadar", "andheri", WEDNESDAY_0830)
+    assert result.options
+    for option in result.options:
+        assert option.board_platform is not None and option.board_platform.numbers
+        assert option.alight_platform is not None and option.alight_platform.numbers
