@@ -1,4 +1,14 @@
-from app.services.platforms import PlatformEntry, resolve_platform
+import json
+
+import pytest
+
+from app.services.platforms import (
+    PlatformDataError,
+    PlatformEntry,
+    _platform_order,
+    load_platform_table,
+    resolve_platform,
+)
 
 ANDHERI_WR = (
     PlatformEntry(numbers=("3",), corridor="slow", direction="DN", role="through", door="left", certain=True),
@@ -7,6 +17,18 @@ ANDHERI_WR = (
     PlatformEntry(numbers=("7",), corridor="fast", direction="UP", role="through", door="right", certain=True),
     PlatformEntry(numbers=("4",), corridor="slow", direction="UP", role="originating", door="right", certain=False),
     PlatformEntry(numbers=("8", "9"), corridor="fast", direction="UP", role="originating", door=None, certain=False),
+)
+
+# Shaped after the plan's curated Kalyan data: through platforms on the
+# fast pair, but only the slow pair has an originating entry.
+KALYAN_CR = (
+    PlatformEntry(numbers=("4",), corridor="fast", direction="DN", role="through", door="left", certain=True),
+    PlatformEntry(numbers=("6",), corridor="fast", direction="DN", role="through", door="left", certain=True),
+    PlatformEntry(numbers=("5",), corridor="fast", direction="UP", role="through", door="right", certain=True),
+    PlatformEntry(numbers=("7",), corridor="fast", direction="UP", role="through", door="right", certain=True),
+    PlatformEntry(
+        numbers=("1", "1A"), corridor="slow", direction="UP", role="originating", door=None, certain=False
+    ),
 )
 
 
@@ -52,3 +74,86 @@ def test_several_matches_union_and_lose_certainty() -> None:
 def test_no_entry_for_the_direction_is_none() -> None:
     entries = (PlatformEntry(numbers=("1",), corridor="any", direction="DN", role="through", door=None, certain=True),)
     assert resolve_platform(entries, corridor="any", direction="UP", role="through") is None
+
+
+def test_own_corridor_beats_role_match_on_the_other_corridor() -> None:
+    # A fast train originating at Kalyan must go to its own fast
+    # platforms (5, 7), not the slow platforms just because those have a
+    # role-specific "originating" entry and the fast side doesn't.
+    p = resolve_platform(KALYAN_CR, corridor="fast", direction="UP", role="originating")
+    assert p is not None
+    assert p.numbers == ("5", "7")
+    assert not p.certain
+
+
+def test_platform_order_sorts_numeric_then_letter_suffix() -> None:
+    assert sorted(("10", "1A", "2"), key=_platform_order) == ["1A", "2", "10"]
+
+
+GOOD_TABLE = {
+    "attribution": "test fixture",
+    "single_pair": [["CR", "Titwala"]],
+    "stations": [
+        {
+            "line_code": "WR",
+            "station": "Andheri",
+            "platforms": [
+                {
+                    "numbers": ["3"],
+                    "corridor": "slow",
+                    "direction": "DN",
+                    "role": "through",
+                    "door": "left",
+                    "certain": True,
+                }
+            ],
+        }
+    ],
+}
+
+
+def test_load_platform_table_parses_a_good_file(tmp_path) -> None:
+    path = tmp_path / "platforms.json"
+    path.write_text(json.dumps(GOOD_TABLE))
+    load_platform_table.cache_clear()
+    try:
+        table = load_platform_table(path)
+        assert table.attribution == "test fixture"
+        assert table.single_pair == frozenset({("CR", "Titwala")})
+        entries = table.entries("WR", "Andheri")
+        assert len(entries) == 1 and entries[0].numbers == ("3",)
+    finally:
+        load_platform_table.cache_clear()
+
+
+def test_load_platform_table_missing_file_raises(tmp_path) -> None:
+    load_platform_table.cache_clear()
+    try:
+        with pytest.raises(PlatformDataError):
+            load_platform_table(tmp_path / "does-not-exist.json")
+    finally:
+        load_platform_table.cache_clear()
+
+
+def test_load_platform_table_bad_json_raises(tmp_path) -> None:
+    path = tmp_path / "platforms.json"
+    path.write_text("{not valid json")
+    load_platform_table.cache_clear()
+    try:
+        with pytest.raises(PlatformDataError):
+            load_platform_table(path)
+    finally:
+        load_platform_table.cache_clear()
+
+
+def test_load_platform_table_bad_corridor_value_raises(tmp_path) -> None:
+    bad = json.loads(json.dumps(GOOD_TABLE))
+    bad["stations"][0]["platforms"][0]["corridor"] = "Fast"
+    path = tmp_path / "platforms.json"
+    path.write_text(json.dumps(bad))
+    load_platform_table.cache_clear()
+    try:
+        with pytest.raises(PlatformDataError):
+            load_platform_table(path)
+    finally:
+        load_platform_table.cache_clear()

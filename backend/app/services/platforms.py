@@ -11,15 +11,22 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
-from typing import Literal
+from types import MappingProxyType
+from typing import Literal, get_args
 
 Corridor = Literal["slow", "fast", "any"]
 Direction = Literal["UP", "DN"]
 StopRole = Literal["originating", "through", "terminating"]
 DoorSide = Literal["left", "right", "both"]
+
+_CORRIDORS = frozenset(get_args(Corridor))
+_DIRECTIONS = frozenset(get_args(Direction))
+_ROLES = frozenset(get_args(StopRole))
+_DOORS = frozenset(get_args(DoorSide))
 
 PLATFORMS_JSON = Path(__file__).resolve().parents[1] / "data" / "generated" / "platforms.json"
 
@@ -57,11 +64,36 @@ def resolve_platform(
     entries: tuple[PlatformEntry, ...], corridor: Corridor, direction: Direction, role: StopRole
 ) -> PlatformAssignment | None:
     """The platform for a stop, or None if the station's table doesn't
-    cover this direction."""
+    cover this direction.
+
+    Search order: the stop's own role on its own corridor; "through" on
+    its own corridor; the stop's own role on the other corridor;
+    "through" on the other corridor. The first step with any entries
+    wins - a fast train's originating platform must never fall back to
+    the slow platform just because the slow side happens to have a
+    role-specific entry and the fast side doesn't. Only the first two
+    steps can produce a certain answer: once the train is off its usual
+    corridor, the platform is never certain.
+    """
     facing = [e for e in entries if e.direction == direction]
-    by_role = [e for e in facing if e.role == role] or [e for e in facing if e.role == "through"]
-    own = [e for e in by_role if e.corridor in (corridor, "any") or corridor == "any"]
-    matches, off_corridor = (own, False) if own else (by_role, True)
+
+    def own_corridor(entry: PlatformEntry) -> bool:
+        return corridor == "any" or entry.corridor in (corridor, "any")
+
+    role_entries = [e for e in facing if e.role == role]
+    through_entries = [e for e in facing if e.role == "through"]
+    steps: tuple[tuple[bool, list[PlatformEntry]], ...] = (
+        (True, [e for e in role_entries if own_corridor(e)]),
+        (True, [e for e in through_entries if own_corridor(e)]),
+        (False, [e for e in role_entries if not own_corridor(e)]),
+        (False, [e for e in through_entries if not own_corridor(e)]),
+    )
+    matches: list[PlatformEntry] = []
+    certain_eligible = False
+    for eligible, candidates in steps:
+        if candidates:
+            matches, certain_eligible = candidates, eligible
+            break
     if not matches:
         return None
     numbers = tuple(sorted({n for e in matches for n in e.numbers}, key=_platform_order))
@@ -69,13 +101,14 @@ def resolve_platform(
     return PlatformAssignment(
         numbers=numbers,
         door=doors.pop() if len(doors) == 1 else None,
-        certain=len(matches) == 1 and matches[0].certain and not off_corridor,
+        certain=certain_eligible and len(matches) == 1 and matches[0].certain,
     )
 
 
 @dataclass(frozen=True, slots=True)
 class PlatformTable:
-    stations: dict[tuple[str, str], tuple[PlatformEntry, ...]]
+    # A read-only view: the table is shared across callers via lru_cache.
+    stations: Mapping[tuple[str, str], tuple[PlatformEntry, ...]]
     attribution: str
     # (line_code, station_name) pairs where the line has only one pair of
     # through tracks: every stop there is corridor "any".
@@ -85,24 +118,70 @@ class PlatformTable:
         return self.stations.get((line_code, station_name), ())
 
 
+def _require(value: object, valid: frozenset[str], field: str, station_key: tuple[str, str]) -> None:
+    if value not in valid:
+        raise PlatformDataError(f"{station_key}: invalid {field} {value!r}")
+
+
+def _parse_entry(entry: object, station_key: tuple[str, str]) -> PlatformEntry:
+    if not isinstance(entry, dict):
+        raise PlatformDataError(f"{station_key}: platform entry must be an object, got {entry!r}")
+    try:
+        numbers = tuple(entry["numbers"])
+        corridor = entry["corridor"]
+        direction = entry["direction"]
+        role = entry["role"]
+        door = entry["door"]
+        certain = entry["certain"]
+    except (KeyError, TypeError) as exc:
+        raise PlatformDataError(f"{station_key}: malformed platform entry ({exc})") from exc
+    _require(corridor, _CORRIDORS, "corridor", station_key)
+    _require(direction, _DIRECTIONS, "direction", station_key)
+    _require(role, _ROLES, "role", station_key)
+    if door is not None:
+        _require(door, _DOORS, "door", station_key)
+    if not isinstance(certain, bool):
+        raise PlatformDataError(f"{station_key}: certain must be a bool, got {certain!r}")
+    return PlatformEntry(
+        numbers=numbers,
+        corridor=corridor,
+        direction=direction,
+        role=role,
+        door=door,
+        certain=certain,
+    )
+
+
 @lru_cache
 def load_platform_table(path: Path = PLATFORMS_JSON) -> PlatformTable:
     try:
         raw = json.loads(path.read_text())
     except FileNotFoundError as exc:
         raise PlatformDataError(f"{path} is missing - run `uv run python scripts/build_platforms.py`") from exc
+    except json.JSONDecodeError as exc:
+        raise PlatformDataError(f"{path} is not valid JSON: {exc}") from exc
+
+    try:
+        station_list = raw["stations"]
+        attribution = raw["attribution"]
+        single_pair_raw = raw["single_pair"]
+    except (KeyError, TypeError) as exc:
+        raise PlatformDataError(f"{path}: malformed platform table ({exc})") from exc
+
     stations: dict[tuple[str, str], tuple[PlatformEntry, ...]] = {}
-    for station in raw["stations"]:
-        stations[(station["line_code"], station["station"])] = tuple(
-            PlatformEntry(
-                numbers=tuple(entry["numbers"]),
-                corridor=entry["corridor"],
-                direction=entry["direction"],
-                role=entry["role"],
-                door=entry["door"],
-                certain=entry["certain"],
-            )
-            for entry in station["platforms"]
-        )
-    single_pair = frozenset((line, name) for line, name in raw["single_pair"])
-    return PlatformTable(stations=stations, attribution=raw["attribution"], single_pair=single_pair)
+    for station in station_list:
+        try:
+            key = (station["line_code"], station["station"])
+            platforms = station["platforms"]
+            stations[key] = tuple(_parse_entry(entry, key) for entry in platforms)
+        except (KeyError, TypeError) as exc:
+            raise PlatformDataError(f"{path}: malformed station entry ({exc})") from exc
+
+    try:
+        single_pair = frozenset((line, name) for line, name in single_pair_raw)
+    except (TypeError, ValueError) as exc:
+        raise PlatformDataError(f"{path}: malformed single_pair ({exc})") from exc
+
+    return PlatformTable(
+        stations=MappingProxyType(stations), attribution=attribution, single_pair=single_pair
+    )
