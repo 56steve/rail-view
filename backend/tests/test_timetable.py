@@ -6,7 +6,6 @@ from pathlib import Path
 
 import pytest
 
-from app.services.platforms import resolve_platform
 from app.services.timetable import Timetable, TimetableError, load_timetable
 
 WESTERN_STOPS = [["Churchgate", 300, 300], ["Marine Lines", 303, 303], ["Charni Road", 306, 306]]
@@ -33,11 +32,9 @@ def _entry(**overrides: object) -> dict[str, object]:
 def _load(tmp_path: Path, *entries: dict[str, object]) -> Timetable:
     path = tmp_path / "timetable.json"
     path.write_text(json.dumps({"trains": list(entries)}))
-    # Each tmp_path is unique, but clear defensively: lru_cache never
-    # caches a call that raised, so this only matters if a test reuses
-    # `path` after rewriting it.
-    load_timetable.cache_clear()
-    return load_timetable(path)
+    # Bypass the cache: these files are one-offs, and clearing it would
+    # make every later test reload the real timetable.
+    return load_timetable.__wrapped__(path)
 
 
 def test_missing_direction_fails_loudly(tmp_path: Path) -> None:
@@ -81,36 +78,19 @@ def test_98901_wadala_and_kings_circle_platforms_are_pinned() -> None:
     assert kings_circle.platform.numbers == ("1",)
 
 
-def test_98901_first_and_last_stops_match_resolve_platform() -> None:
-    """The originating and terminating stops are exactly what
-    resolve_platform gives for their own corridor, direction and role -
-    not a special case in load_timetable."""
-    from app.data.mumbai_network import load_routes
-    from app.services.corridors import stop_corridors, stop_directions
-    from app.services.platforms import load_platform_table
+def test_a_train_starting_at_a_terminus_gets_its_departure_platforms() -> None:
+    # CSMT's Harbour platforms (1-2) are listed for trains starting there;
+    # resolved as a through stop it would have none.
+    first = load_timetable().by_number()["98301"].stops[0]
+    assert first.station_name == "CSMT"
+    assert first.platform is not None
+    assert (first.platform.numbers, first.platform.door, first.platform.certain) == (("1", "2"), "both", False)
 
-    train = load_timetable().by_number()["98901"]
-    route = load_routes()[train.route_code]
-    names = [stop.station_name for stop in train.stops]
-    route_names = [station.name for station in route.stations]
-    fast_halts = {station.name for station in route.stations if station.fast_halt}
-    platforms = load_platform_table()
-    single_pair = {name for line, name in platforms.single_pair if line == train.line_code}
 
-    corridors = stop_corridors(route_names, fast_halts, names, single_pair)
-    directions = stop_directions(train.direction, train.direction_changes_at, names)
-
-    expected_first = resolve_platform(
-        platforms.entries(train.line_code, names[0]),
-        corridor=corridors[0],
-        direction=directions[0],
-        role="originating",
-    )
-    expected_last = resolve_platform(
-        platforms.entries(train.line_code, names[-1]),
-        corridor=corridors[-1],
-        direction=directions[-1],
-        role="terminating",
-    )
-    assert train.stops[0].platform == expected_first
-    assert train.stops[-1].platform == expected_last
+def test_a_train_ending_at_a_terminus_gets_its_arrival_platform() -> None:
+    # Vashi has a platform for trains ending there; as a through stop it
+    # would be the through pair, 3-4.
+    last = load_timetable().by_number()["98573"].stops[-1]
+    assert last.station_name == "Vashi"
+    assert last.platform is not None
+    assert (last.platform.numbers, last.platform.certain) == (("2",), True)

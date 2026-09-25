@@ -166,6 +166,8 @@ def test_timetable_plan_marks_fast_trains_and_rakes() -> None:
 
 
 def test_timetable_plan_carries_each_stops_platform_through() -> None:
-    train = load_timetable().by_number()["98901"]  # Panvel -> Goregaon
+    train = load_timetable().by_number()["98301"]  # starts at CSMT, platforms 1-2
     plan = timetable_run_plan(train, get_route(train.route_code), WEDNESDAY)
+    # The first stop is built separately from the rest, so pin it too.
+    assert plan.stops[0].platform is not None
     assert [scheduled.platform for scheduled in plan.stops] == [stop.platform for stop in train.stops]
