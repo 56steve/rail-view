@@ -149,7 +149,7 @@ def test_curated_station_may_be_withheld_with_an_empty_platform_list(tmp_path: P
 
 
 def test_the_curated_file_withholds_harbour_sanpada() -> None:
-    sites = station_sites(json.loads(NETWORK_OUT.read_text()))
+    sites = station_sites(json.loads(NETWORK_OUT.read_text()), frozenset())
     assert load_curated(CURATED_IN, sites)[("HR", "Sanpada")]["platforms"] == []
 
 
@@ -182,7 +182,7 @@ def test_disagreements_flag_a_direction_the_curated_station_leaves_out() -> None
 
 
 def test_the_curated_file_names_real_stations_and_cites_sources() -> None:
-    sites = station_sites(json.loads(NETWORK_OUT.read_text()))
+    sites = station_sites(json.loads(NETWORK_OUT.read_text()), frozenset())
     stations = load_curated(CURATED_IN, sites)
     assert ("WR", "Dadar") in stations
     assert all(station["source"].strip() for station in stations.values())

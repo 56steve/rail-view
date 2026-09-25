@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-09-25T13:11:01+00:00",
+ "generated_at": "2026-09-25T13:29:15+00:00",
  "attribution": "© OpenStreetMap contributors (ODbL); curated entries cite their sources in backend/data/platforms/curated.json",
  "single_pair": [
   [
@@ -423,7 +423,7 @@
      "direction": "DN",
      "role": "through",
      "door": "left",
-     "certain": true
+     "certain": false
     },
     {
      "numbers": [
@@ -453,7 +453,7 @@
      "direction": "UP",
      "role": "through",
      "door": "left",
-     "certain": true
+     "certain": false
     }
    ]
   },
@@ -487,7 +487,7 @@
      "direction": "DN",
      "role": "through",
      "door": "right",
-     "certain": true
+     "certain": false
     },
     {
      "numbers": [
@@ -497,7 +497,7 @@
      "direction": "UP",
      "role": "through",
      "door": "right",
-     "certain": true
+     "certain": false
     }
    ]
   },
@@ -514,7 +514,7 @@
      "direction": "DN",
      "role": "through",
      "door": "left",
-     "certain": true
+     "certain": false
     },
     {
      "numbers": [
@@ -524,7 +524,7 @@
      "direction": "DN",
      "role": "through",
      "door": "left",
-     "certain": true
+     "certain": false
     },
     {
      "numbers": [
@@ -534,7 +534,7 @@
      "direction": "UP",
      "role": "through",
      "door": "left",
-     "certain": true
+     "certain": false
     }
    ]
   },
@@ -646,7 +646,7 @@
      "direction": "DN",
      "role": "through",
      "door": null,
-     "certain": true
+     "certain": false
     },
     {
      "numbers": [
@@ -656,7 +656,7 @@
      "direction": "UP",
      "role": "through",
      "door": null,
-     "certain": true
+     "certain": false
     }
    ]
   },
@@ -767,7 +767,7 @@
      "direction": "DN",
      "role": "through",
      "door": "right",
-     "certain": true
+     "certain": false
     },
     {
      "numbers": [
@@ -777,7 +777,7 @@
      "direction": "UP",
      "role": "through",
      "door": "right",
-     "certain": true
+     "certain": false
     },
     {
      "numbers": [
@@ -787,7 +787,7 @@
      "direction": "DN",
      "role": "through",
      "door": "right",
-     "certain": true
+     "certain": false
     },
     {
      "numbers": [
@@ -797,7 +797,7 @@
      "direction": "UP",
      "role": "through",
      "door": "right",
-     "certain": true
+     "certain": false
     }
    ]
   },
@@ -903,7 +903,7 @@
      "direction": "DN",
      "role": "through",
      "door": "right",
-     "certain": true
+     "certain": false
     },
     {
      "numbers": [
@@ -913,7 +913,7 @@
      "direction": "UP",
      "role": "through",
      "door": "right",
-     "certain": true
+     "certain": false
     },
     {
      "numbers": [
@@ -923,7 +923,7 @@
      "direction": "DN",
      "role": "through",
      "door": "right",
-     "certain": true
+     "certain": false
     },
     {
      "numbers": [
@@ -933,7 +933,7 @@
      "direction": "UP",
      "role": "through",
      "door": "right",
-     "certain": true
+     "certain": false
     }
    ]
   },
@@ -977,7 +977,7 @@
      "direction": "DN",
      "role": "through",
      "door": "left",
-     "certain": true
+     "certain": false
     },
     {
      "numbers": [
@@ -987,7 +987,7 @@
      "direction": "UP",
      "role": "through",
      "door": "left",
-     "certain": true
+     "certain": false
     }
    ]
   },
@@ -1056,107 +1056,6 @@
   },
   {
    "line_code": "CR",
-   "station": "Masjid",
-   "source": "osm",
-   "platforms": [
-    {
-     "numbers": [
-      "3"
-     ],
-     "corridor": "slow",
-     "direction": "DN",
-     "role": "through",
-     "door": "right",
-     "certain": true
-    },
-    {
-     "numbers": [
-      "4"
-     ],
-     "corridor": "slow",
-     "direction": "UP",
-     "role": "through",
-     "door": "right",
-     "certain": true
-    }
-   ]
-  },
-  {
-   "line_code": "CR",
-   "station": "Byculla",
-   "source": "osm",
-   "platforms": [
-    {
-     "numbers": [
-      "3"
-     ],
-     "corridor": "fast",
-     "direction": "DN",
-     "role": "through",
-     "door": "left",
-     "certain": true
-    },
-    {
-     "numbers": [
-      "4"
-     ],
-     "corridor": "fast",
-     "direction": "UP",
-     "role": "through",
-     "door": "left",
-     "certain": true
-    },
-    {
-     "numbers": [
-      "1"
-     ],
-     "corridor": "slow",
-     "direction": "DN",
-     "role": "through",
-     "door": "left",
-     "certain": true
-    },
-    {
-     "numbers": [
-      "2"
-     ],
-     "corridor": "slow",
-     "direction": "UP",
-     "role": "through",
-     "door": "left",
-     "certain": true
-    }
-   ]
-  },
-  {
-   "line_code": "CR",
-   "station": "Currey Road",
-   "source": "osm",
-   "platforms": [
-    {
-     "numbers": [
-      "1"
-     ],
-     "corridor": "slow",
-     "direction": "DN",
-     "role": "through",
-     "door": "right",
-     "certain": true
-    },
-    {
-     "numbers": [
-      "2"
-     ],
-     "corridor": "slow",
-     "direction": "UP",
-     "role": "through",
-     "door": "right",
-     "certain": true
-    }
-   ]
-  },
-  {
-   "line_code": "CR",
    "station": "Dadar",
    "source": "curated",
    "platforms": [
@@ -1216,7 +1115,7 @@
      "direction": "DN",
      "role": "through",
      "door": "right",
-     "certain": true
+     "certain": false
     },
     {
      "numbers": [
@@ -1226,7 +1125,7 @@
      "direction": "UP",
      "role": "through",
      "door": "right",
-     "certain": true
+     "certain": false
     },
     {
      "numbers": [
@@ -1262,8 +1161,8 @@
      "corridor": "fast",
      "direction": "DN",
      "role": "through",
-     "door": "left",
-     "certain": true
+     "door": null,
+     "certain": false
     },
     {
      "numbers": [
@@ -1300,7 +1199,7 @@
      "direction": "DN",
      "role": "through",
      "door": "right",
-     "certain": true
+     "certain": false
     },
     {
      "numbers": [
@@ -1310,7 +1209,7 @@
      "direction": "UP",
      "role": "through",
      "door": "right",
-     "certain": true
+     "certain": false
     }
    ]
   },
@@ -1327,7 +1226,7 @@
      "direction": "DN",
      "role": "through",
      "door": "right",
-     "certain": true
+     "certain": false
     },
     {
      "numbers": [
@@ -1337,7 +1236,7 @@
      "direction": "UP",
      "role": "through",
      "door": "right",
-     "certain": true
+     "certain": false
     }
    ]
   },
@@ -1354,7 +1253,7 @@
      "direction": "DN",
      "role": "through",
      "door": "left",
-     "certain": true
+     "certain": false
     },
     {
      "numbers": [
@@ -1364,7 +1263,7 @@
      "direction": "UP",
      "role": "through",
      "door": "left",
-     "certain": true
+     "certain": false
     },
     {
      "numbers": [
@@ -1374,7 +1273,7 @@
      "direction": "DN",
      "role": "through",
      "door": "left",
-     "certain": true
+     "certain": false
     },
     {
      "numbers": [
@@ -1384,7 +1283,7 @@
      "direction": "UP",
      "role": "through",
      "door": "left",
-     "certain": true
+     "certain": false
     }
    ]
   },
@@ -1566,8 +1465,8 @@
      "corridor": "fast",
      "direction": "DN",
      "role": "through",
-     "door": "right",
-     "certain": true
+     "door": null,
+     "certain": false
     },
     {
      "numbers": [
@@ -1577,7 +1476,7 @@
      "direction": "UP",
      "role": "through",
      "door": "right",
-     "certain": true
+     "certain": false
     }
    ]
   },
@@ -1594,7 +1493,7 @@
      "direction": "DN",
      "role": "through",
      "door": "left",
-     "certain": true
+     "certain": false
     },
     {
      "numbers": [
@@ -1604,7 +1503,7 @@
      "direction": "UP",
      "role": "through",
      "door": "left",
-     "certain": true
+     "certain": false
     }
    ]
   },
@@ -1621,7 +1520,7 @@
      "direction": "DN",
      "role": "through",
      "door": "right",
-     "certain": true
+     "certain": false
     },
     {
      "numbers": [
@@ -1631,7 +1530,7 @@
      "direction": "UP",
      "role": "through",
      "door": "right",
-     "certain": true
+     "certain": false
     }
    ]
   },
@@ -1769,7 +1668,7 @@
      "direction": "DN",
      "role": "through",
      "door": "right",
-     "certain": true
+     "certain": false
     },
     {
      "numbers": [
@@ -1779,7 +1678,7 @@
      "direction": "UP",
      "role": "through",
      "door": "right",
-     "certain": true
+     "certain": false
     }
    ]
   },
@@ -1931,7 +1830,7 @@
      "direction": "DN",
      "role": "through",
      "door": "left",
-     "certain": true
+     "certain": false
     },
     {
      "numbers": [
@@ -1941,7 +1840,7 @@
      "direction": "UP",
      "role": "through",
      "door": "left",
-     "certain": true
+     "certain": false
     }
    ]
   },
@@ -1958,7 +1857,7 @@
      "direction": "DN",
      "role": "through",
      "door": "left",
-     "certain": true
+     "certain": false
     },
     {
      "numbers": [
@@ -1968,7 +1867,7 @@
      "direction": "UP",
      "role": "through",
      "door": "left",
-     "certain": true
+     "certain": false
     }
    ]
   },
@@ -2044,33 +1943,6 @@
    ]
   },
   {
-   "line_code": "CR",
-   "station": "Khopoli",
-   "source": "osm",
-   "platforms": [
-    {
-     "numbers": [
-      "1"
-     ],
-     "corridor": "any",
-     "direction": "DN",
-     "role": "through",
-     "door": "right",
-     "certain": false
-    },
-    {
-     "numbers": [
-      "2"
-     ],
-     "corridor": "any",
-     "direction": "UP",
-     "role": "through",
-     "door": "right",
-     "certain": false
-    }
-   ]
-  },
-  {
    "line_code": "HR",
    "station": "CSMT",
    "source": "curated",
@@ -2112,7 +1984,7 @@
      "direction": "DN",
      "role": "through",
      "door": "right",
-     "certain": true
+     "certain": false
     },
     {
      "numbers": [
@@ -2122,6 +1994,34 @@
      "direction": "UP",
      "role": "through",
      "door": "right",
+     "certain": false
+    }
+   ]
+  },
+  {
+   "line_code": "HR",
+   "station": "Sandhurst Road",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "2",
+      "3"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "left",
+     "certain": false
+    },
+    {
+     "numbers": [
+      "4"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": null,
      "certain": true
     }
    ]
@@ -2317,7 +2217,7 @@
      "corridor": "any",
      "direction": "DN",
      "role": "through",
-     "door": "right",
+     "door": null,
      "certain": true
     },
     {
@@ -2426,7 +2326,7 @@
      "direction": "DN",
      "role": "through",
      "door": "right",
-     "certain": true
+     "certain": false
     },
     {
      "numbers": [
@@ -2436,7 +2336,7 @@
      "direction": "UP",
      "role": "through",
      "door": "right",
-     "certain": true
+     "certain": false
     }
    ]
   },
@@ -2480,7 +2380,7 @@
      "direction": "DN",
      "role": "through",
      "door": "left",
-     "certain": true
+     "certain": false
     },
     {
      "numbers": [
@@ -2490,7 +2390,7 @@
      "direction": "UP",
      "role": "through",
      "door": "left",
-     "certain": true
+     "certain": false
     }
    ]
   },
@@ -2760,7 +2660,7 @@
      "corridor": "any",
      "direction": "DN",
      "role": "through",
-     "door": "left",
+     "door": null,
      "certain": true
     },
     {
@@ -2815,7 +2715,7 @@
      "direction": "DN",
      "role": "through",
      "door": null,
-     "certain": true
+     "certain": false
     },
     {
      "numbers": [
@@ -2825,7 +2725,7 @@
      "direction": "UP",
      "role": "through",
      "door": null,
-     "certain": true
+     "certain": false
     }
    ]
   },
@@ -2859,6 +2759,33 @@
   {
    "line_code": "HR",
    "station": "Santacruz",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "HR",
+   "station": "Vile Parle",
    "source": "osm",
    "platforms": [
     {

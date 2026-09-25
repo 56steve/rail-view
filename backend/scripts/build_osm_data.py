@@ -219,6 +219,14 @@ def bbox_clause(bbox: tuple[float, float, float, float] = BBOX) -> str:
     return f"({s},{w},{n},{e})"
 
 
+# Queries shared with build_platforms.py (same text, same cache key).
+RAILS_QUERY = f'[out:json][timeout:180];way["railway"="rail"]{bbox_clause()};out body;>;out skel qt;'
+PLATFORMS_QUERY = (
+    f'[out:json][timeout:120];(way["railway"="platform"]{bbox_clause()};'
+    f'relation["railway"="platform"]{bbox_clause()};);out tags geom;'
+)
+
+
 # --------------------------------------------------------------------------
 # Stations
 
@@ -734,11 +742,7 @@ def build_tracks(routes: list[BuiltRoute], index: TrackIndex, refresh: bool):
     route_lines = [LineString(b.track_local) for b in routes]
     tracks = index.tracks
 
-    platform_query = (
-        f'[out:json][timeout:120];(way["railway"="platform"]{bbox_clause()};'
-        f'relation["railway"="platform"]{bbox_clause()};);out tags geom;'
-    )
-    platform_data = overpass(platform_query, "platforms", refresh)
+    platform_data = overpass(PLATFORMS_QUERY, "platforms", refresh)
     station_points = [
         Point(p.x, p.y)
         for p in (to_local(s["lat"], s["lon"]) for built in routes for s in built.stations)
@@ -1232,11 +1236,7 @@ def main() -> None:
     station_elements = station_data["elements"]
 
     print("rail network")
-    rail_data = overpass(
-        f'[out:json][timeout:180];way["railway"="rail"]{bbox_clause()};out body;>;out skel qt;',
-        "rails",
-        args.refresh,
-    )
+    rail_data = overpass(RAILS_QUERY, "rails", args.refresh)
     graph = build_rail_graph(rail_data)
 
     print("routes")
