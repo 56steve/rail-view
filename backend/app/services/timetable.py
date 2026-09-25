@@ -22,7 +22,14 @@ from typing import Literal
 from zoneinfo import ZoneInfo
 
 from app.data.mumbai_network import RouteSeed, load_routes
+from app.services.corridors import stop_corridors, stop_directions
 from app.services.holidays import runs_sunday_schedule
+from app.services.platforms import (
+    Direction,
+    PlatformAssignment,
+    load_platform_table,
+    resolve_platform,
+)
 from app.services.station_index import station_id_for_name
 
 TIMETABLE_JSON = Path(__file__).resolve().parents[1] / "data" / "generated" / "timetable.json"
@@ -44,6 +51,8 @@ class TimetableStop:
     station_id: str
     arrival_min: int
     departure_min: int
+    # Where it calls, if the station's platforms are known.
+    platform: PlatformAssignment | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -63,6 +72,10 @@ class TimetabledTrain:
     days: Days
     ladies_special: bool
     stops: tuple[TimetableStop, ...]
+    # "UP" towards CSMT/Churchgate, "DN" away; reverses after
+    # direction_changes_at (Panvel - Wadala Road - Goregaon workings).
+    direction: Direction = "DN"
+    direction_changes_at: str | None = None
 
     @property
     def first_departure_min(self) -> int:
@@ -129,6 +142,7 @@ def load_timetable(path: Path = TIMETABLE_JSON) -> Timetable:
         raise TimetableError(f"{path} is missing - run `uv run python scripts/import_timetables.py`") from exc
 
     routes = list(load_routes().values())
+    platforms = load_platform_table()
     trains: list[TimetabledTrain] = []
     unplaced: list[str] = []
     for entry in raw["trains"]:
@@ -141,6 +155,23 @@ def load_timetable(path: Path = TIMETABLE_JSON) -> Timetable:
             unplaced.append(entry["number"])
             continue
         route, forward = fitted
+
+        route_names = [station.name for station in route.stations]
+        fast_halts = {station.name for station in route.stations if station.fast_halt}
+        single_pair = {name for line, name in platforms.single_pair if line == line_code}
+        corridors = stop_corridors(route_names, fast_halts, names, single_pair)
+        directions = stop_directions(entry["direction"], entry["direction_changes_at"], names)
+        last = len(names) - 1
+        stop_platforms = [
+            resolve_platform(
+                platforms.entries(line_code, name),
+                corridor=corridors[i],
+                direction=directions[i],
+                role="originating" if i == 0 else "terminating" if i == last else "through",
+            )
+            for i, name in enumerate(names)
+        ]
+
         trains.append(
             TimetabledTrain(
                 number=entry["number"],
@@ -154,14 +185,17 @@ def load_timetable(path: Path = TIMETABLE_JSON) -> Timetable:
                 cars=entry["cars"],
                 days=entry["days"],
                 ladies_special=entry["ladies_special"],
+                direction=entry["direction"],
+                direction_changes_at=entry["direction_changes_at"],
                 stops=tuple(
                     TimetableStop(
                         station_name=name,
                         station_id=station_id_for_name(name),
                         arrival_min=arrival,
                         departure_min=departure,
+                        platform=stop_platforms[i],
                     )
-                    for name, arrival, departure in entry["stops"]
+                    for i, (name, arrival, departure) in enumerate(entry["stops"])
                 ),
             )
         )
