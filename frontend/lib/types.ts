@@ -60,6 +60,17 @@ export interface StationIndexEntry {
 }
 
 export type TrainType = "FAST" | "SLOW";
+
+/** Which side of the train the platform is on, facing the way it travels. */
+export type DoorSide = "left" | "right" | "both";
+
+/** The platform a train calls at. `certain` is false where it varies from
+ * train to train (termini), and `numbers` then lists the usual ones. */
+export interface Platform {
+  numbers: string[];
+  door: DoorSide | null;
+  certain: boolean;
+}
 export type TrainStatus = "live" | "stale";
 
 export interface TrainPositionUpdate {
@@ -96,6 +107,7 @@ export interface StopTime {
   scheduled_epoch: number;
   expected_epoch: number;
   observed_arrival_epoch: number | null;
+  platform?: Platform | null;
 }
 
 export interface TrainDetail {
@@ -122,6 +134,8 @@ export interface JourneyOption {
   duration_seconds: number;
   delay_seconds: number;
   intermediate_stops: number;
+  board_platform?: Platform | null;
+  alight_platform?: Platform | null;
 }
 
 export interface JourneyPlan {
