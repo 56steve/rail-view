@@ -1,0 +1,986 @@
+{
+ "stations": [
+  {
+   "line_code": "WR",
+   "station": "Churchgate",
+   "source": "https://en.wikipedia.org/wiki/Churchgate_railway_station (infobox: 1-2 slow line, 3-4 fast line, revision of 2026-08-24, retrieved 2026-09-25); door sides: OpenStreetMap platform areas on both sides of every track (scripts/build_platforms.py, 2026-09-25)",
+   "platforms": [
+    {
+     "numbers": [
+      "1",
+      "2"
+     ],
+     "corridor": "slow",
+     "direction": "DN",
+     "role": "originating",
+     "door": "both",
+     "certain": false
+    },
+    {
+     "numbers": [
+      "3",
+      "4"
+     ],
+     "corridor": "fast",
+     "direction": "DN",
+     "role": "originating",
+     "door": "both",
+     "certain": false
+    },
+    {
+     "numbers": [
+      "1",
+      "2"
+     ],
+     "corridor": "slow",
+     "direction": "UP",
+     "role": "terminating",
+     "door": "both",
+     "certain": false
+    },
+    {
+     "numbers": [
+      "3",
+      "4"
+     ],
+     "corridor": "fast",
+     "direction": "UP",
+     "role": "terminating",
+     "door": "both",
+     "certain": false
+    }
+   ]
+  },
+  {
+   "line_code": "WR",
+   "station": "Dadar",
+   "source": "https://en.wikipedia.org/wiki/Dadar_railway_station (station layout table: directions and door sides, revision of 2026-09-12, retrieved 2026-09-25)",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "slow",
+     "direction": "DN",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "slow",
+     "direction": "UP",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "3",
+      "5"
+     ],
+     "corridor": "fast",
+     "direction": "DN",
+     "role": "through",
+     "door": "left",
+     "certain": false
+    },
+    {
+     "numbers": [
+      "4"
+     ],
+     "corridor": "fast",
+     "direction": "UP",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "WR",
+   "station": "Andheri",
+   "source": "https://en.wikipedia.org/wiki/Andheri_railway_station (platforms table, revision of 2026-08-23, retrieved 2026-09-25); door sides: OpenStreetMap platform areas beside each track (scripts/build_platforms.py, 2026-09-25) for the through platforms",
+   "platforms": [
+    {
+     "numbers": [
+      "3"
+     ],
+     "corridor": "slow",
+     "direction": "DN",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "5"
+     ],
+     "corridor": "slow",
+     "direction": "UP",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "6"
+     ],
+     "corridor": "fast",
+     "direction": "DN",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "7"
+     ],
+     "corridor": "fast",
+     "direction": "UP",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "4"
+     ],
+     "corridor": "slow",
+     "direction": "DN",
+     "role": "originating",
+     "door": null,
+     "certain": false
+    },
+    {
+     "numbers": [
+      "4"
+     ],
+     "corridor": "slow",
+     "direction": "UP",
+     "role": "originating",
+     "door": null,
+     "certain": false
+    },
+    {
+     "numbers": [
+      "8",
+      "9"
+     ],
+     "corridor": "fast",
+     "direction": "DN",
+     "role": "originating",
+     "door": null,
+     "certain": false
+    },
+    {
+     "numbers": [
+      "8",
+      "9"
+     ],
+     "corridor": "fast",
+     "direction": "UP",
+     "role": "originating",
+     "door": null,
+     "certain": false
+    }
+   ]
+  },
+  {
+   "line_code": "CR",
+   "station": "CSMT",
+   "source": "https://en.wikipedia.org/wiki/Chhatrapati_Shivaji_Terminus (platforms: seven suburban platforms, revision of 2026-09-08, retrieved 2026-09-25); https://en.wikipedia.org/wiki/Mumbai_Suburban_Railway (Harbour line runs from two separate platforms at CSMT, retrieved 2026-09-25); the Harbour pair is 1-2 by the OpenStreetMap stop positions, leaving 3-7 for Central. No open source gives the slow/fast split",
+   "platforms": [
+    {
+     "numbers": [
+      "3",
+      "4",
+      "5",
+      "6",
+      "7"
+     ],
+     "corridor": "slow",
+     "direction": "DN",
+     "role": "originating",
+     "door": null,
+     "certain": false
+    },
+    {
+     "numbers": [
+      "3",
+      "4",
+      "5",
+      "6",
+      "7"
+     ],
+     "corridor": "slow",
+     "direction": "UP",
+     "role": "terminating",
+     "door": null,
+     "certain": false
+    },
+    {
+     "numbers": [
+      "3",
+      "4",
+      "5",
+      "6",
+      "7"
+     ],
+     "corridor": "fast",
+     "direction": "DN",
+     "role": "originating",
+     "door": null,
+     "certain": false
+    },
+    {
+     "numbers": [
+      "3",
+      "4",
+      "5",
+      "6",
+      "7"
+     ],
+     "corridor": "fast",
+     "direction": "UP",
+     "role": "terminating",
+     "door": null,
+     "certain": false
+    }
+   ]
+  },
+  {
+   "line_code": "CR",
+   "station": "Dadar",
+   "source": "https://en.wikipedia.org/wiki/Dadar_railway_station (station layout table, numbered 8-14 since Central Railway's renumbering of 9 December 2023 (notice of 28 September 2023, cr.indianrailways.gov.in, cited there), revision of 2026-09-12, retrieved 2026-09-25)",
+   "platforms": [
+    {
+     "numbers": [
+      "8"
+     ],
+     "corridor": "slow",
+     "direction": "DN",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "9"
+     ],
+     "corridor": "slow",
+     "direction": "UP",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "9A",
+      "11"
+     ],
+     "corridor": "fast",
+     "direction": "DN",
+     "role": "through",
+     "door": null,
+     "certain": false
+    },
+    {
+     "numbers": [
+      "12"
+     ],
+     "corridor": "fast",
+     "direction": "UP",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "CR",
+   "station": "Kanjurmarg",
+   "source": "https://en.wikipedia.org/wiki/Kanjur_Marg_railway_station (platforms section, revision of 2026-08-25, retrieved 2026-09-25); door sides: OpenStreetMap platform areas beside each track (scripts/build_platforms.py, 2026-09-25) for platform 2",
+   "platforms": [
+    {
+     "numbers": [
+      "1",
+      "1A"
+     ],
+     "corridor": "slow",
+     "direction": "DN",
+     "role": "through",
+     "door": null,
+     "certain": false
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "slow",
+     "direction": "UP",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "CR",
+   "station": "Kalyan",
+   "source": "https://en.wikipedia.org/wiki/Kalyan_Junction_railway_station (platforms section, revision of 2026-09-16, retrieved 2026-09-25)",
+   "platforms": [
+    {
+     "numbers": [
+      "4",
+      "6"
+     ],
+     "corridor": "fast",
+     "direction": "DN",
+     "role": "through",
+     "door": null,
+     "certain": false
+    },
+    {
+     "numbers": [
+      "5",
+      "7"
+     ],
+     "corridor": "fast",
+     "direction": "UP",
+     "role": "through",
+     "door": null,
+     "certain": false
+    },
+    {
+     "numbers": [
+      "1",
+      "1A"
+     ],
+     "corridor": "slow",
+     "direction": "UP",
+     "role": "originating",
+     "door": null,
+     "certain": false
+    }
+   ]
+  },
+  {
+   "line_code": "HR",
+   "station": "CSMT",
+   "source": "https://en.wikipedia.org/wiki/Mumbai_Suburban_Railway (Harbour line runs from two separate platforms at CSMT, retrieved 2026-09-25); numbers 1-2 from the OpenStreetMap stop positions on the Harbour tracks; door sides: OpenStreetMap platform areas on both sides of both tracks (scripts/build_platforms.py, 2026-09-25)",
+   "platforms": [
+    {
+     "numbers": [
+      "1",
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "originating",
+     "door": "both",
+     "certain": false
+    },
+    {
+     "numbers": [
+      "1",
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "terminating",
+     "door": "both",
+     "certain": false
+    }
+   ]
+  },
+  {
+   "line_code": "HR",
+   "station": "Wadala Road",
+   "source": "https://en.wikipedia.org/wiki/Wadala_Road_railway_station (platforms section, revision of 2026-09-12, retrieved 2026-09-25)",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": null,
+     "certain": true
+    },
+    {
+     "numbers": [
+      "4"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": null,
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2",
+      "3"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "originating",
+     "door": null,
+     "certain": false
+    },
+    {
+     "numbers": [
+      "2",
+      "3"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "originating",
+     "door": null,
+     "certain": false
+    },
+    {
+     "numbers": [
+      "2",
+      "3"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "terminating",
+     "door": null,
+     "certain": false
+    },
+    {
+     "numbers": [
+      "2",
+      "3"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "terminating",
+     "door": null,
+     "certain": false
+    }
+   ]
+  },
+  {
+   "line_code": "HR",
+   "station": "Andheri",
+   "source": "https://en.wikipedia.org/wiki/Andheri_railway_station (platforms table: 1 towards Goregaon, 2 towards CSMT and Panvel, revision of 2026-08-23, retrieved 2026-09-25); door sides: OpenStreetMap platform areas beside each track (scripts/build_platforms.py, 2026-09-25)",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "HR",
+   "station": "Vashi",
+   "source": "https://en.wikipedia.org/wiki/Vashi_railway_station (platforms: PF 2 for trains terminating here that go back to CSMT, PF 3 and 4 for Harbour line trains, revision of 2026-08-24, retrieved 2026-09-25)",
+   "platforms": [
+    {
+     "numbers": [
+      "3",
+      "4"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": null,
+     "certain": false
+    },
+    {
+     "numbers": [
+      "3",
+      "4"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": null,
+     "certain": false
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "terminating",
+     "door": null,
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "originating",
+     "door": null,
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "HR",
+   "station": "Juinagar",
+   "source": "https://en.wikipedia.org/wiki/Juinagar_railway_station (platforms: PF 3 towards Panvel, PF 4 towards Goregaon/CSMT, revision of 2026-08-18, retrieved 2026-09-25); door sides: OpenStreetMap platform areas beside each track (scripts/build_platforms.py, 2026-09-25)",
+   "platforms": [
+    {
+     "numbers": [
+      "3"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "both",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "4"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": "both",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "HR",
+   "station": "Nerul",
+   "source": "https://en.wikipedia.org/wiki/Nerul_railway_station (platforms: PF 3 towards CBD Belapur/Panvel, PF 4 towards CSMT/Goregaon, revision of 2026-08-23, retrieved 2026-09-25); door sides: OpenStreetMap platform areas beside each track (scripts/build_platforms.py, 2026-09-25)",
+   "platforms": [
+    {
+     "numbers": [
+      "3"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "both",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "4"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": "both",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "HR",
+   "station": "Belapur CBD",
+   "source": "https://en.wikipedia.org/wiki/CBD_Belapur_railway_station (platforms: PF 1 towards Panvel, PF 2 for trains starting here, PF 3 towards CSMT/Goregaon/Thane, revision of 2026-08-23, retrieved 2026-09-25)",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": null,
+     "certain": true
+    },
+    {
+     "numbers": [
+      "3"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": null,
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "originating",
+     "door": null,
+     "certain": false
+    }
+   ]
+  },
+  {
+   "line_code": "HR",
+   "station": "Kharghar",
+   "source": "https://en.wikipedia.org/wiki/Kharghar_railway_station (platforms: PF 1 towards Panvel, PF 2 towards Thane/Goregaon/CSMT, revision of 2026-08-25, retrieved 2026-09-25); door sides: OpenStreetMap platform areas beside each track (scripts/build_platforms.py, 2026-09-25)",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "both",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "HR",
+   "station": "Mansarovar",
+   "source": "https://en.wikipedia.org/wiki/Mansarovar_railway_station (platforms: PF 1 towards Panvel, PF 2 towards Thane/Goregaon/CSMT, revision of 2026-08-25, retrieved 2026-09-25); door sides: OpenStreetMap platform areas beside each track (scripts/build_platforms.py, 2026-09-25)",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "both",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": "both",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "HR",
+   "station": "Khandeshwar",
+   "source": "https://en.wikipedia.org/wiki/Khandeshwar_railway_station (platforms: PF 1 towards Panvel, PF 2 towards Thane/Goregaon/CSMT, revision of 2026-08-25, retrieved 2026-09-25); door sides: OpenStreetMap platform areas beside each track (scripts/build_platforms.py, 2026-09-25)",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "both",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "THR",
+   "station": "Belapur CBD",
+   "source": "https://en.wikipedia.org/wiki/CBD_Belapur_railway_station (platforms: PF 1 towards Panvel, PF 2 for trains starting here, PF 3 towards CSMT/Goregaon/Thane, revision of 2026-08-23, retrieved 2026-09-25)",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": null,
+     "certain": true
+    },
+    {
+     "numbers": [
+      "3"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": null,
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "originating",
+     "door": null,
+     "certain": false
+    }
+   ]
+  },
+  {
+   "line_code": "THR",
+   "station": "Kharghar",
+   "source": "https://en.wikipedia.org/wiki/Kharghar_railway_station (platforms: PF 1 towards Panvel, PF 2 towards Thane/Goregaon/CSMT, revision of 2026-08-25, retrieved 2026-09-25); door sides: OpenStreetMap platform areas beside each track (scripts/build_platforms.py, 2026-09-25)",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "both",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "THR",
+   "station": "Mansarovar",
+   "source": "https://en.wikipedia.org/wiki/Mansarovar_railway_station (platforms: PF 1 towards Panvel, PF 2 towards Thane/Goregaon/CSMT, revision of 2026-08-25, retrieved 2026-09-25); door sides: OpenStreetMap platform areas beside each track (scripts/build_platforms.py, 2026-09-25)",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "both",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": "both",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "THR",
+   "station": "Khandeshwar",
+   "source": "https://en.wikipedia.org/wiki/Khandeshwar_railway_station (platforms: PF 1 towards Panvel, PF 2 towards Thane/Goregaon/CSMT, revision of 2026-08-25, retrieved 2026-09-25); door sides: OpenStreetMap platform areas beside each track (scripts/build_platforms.py, 2026-09-25)",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "both",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "THR",
+   "station": "Thane",
+   "source": "https://en.wikipedia.org/wiki/Trans-Harbour_line_(Mumbai_Suburban_Railway) (starts from separate platforms 9 and 10 at Thane, retrieved 2026-09-25)",
+   "platforms": [
+    {
+     "numbers": [
+      "9",
+      "10"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "originating",
+     "door": null,
+     "certain": false
+    },
+    {
+     "numbers": [
+      "9",
+      "10"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "terminating",
+     "door": null,
+     "certain": false
+    }
+   ]
+  },
+  {
+   "line_code": "THR",
+   "station": "Vashi",
+   "source": "https://en.wikipedia.org/wiki/Vashi_railway_station (platforms: PF 1 for trains terminating here that go back to Thane, PF 2 for those going back to CSMT/Thane, revision of 2026-08-24, retrieved 2026-09-25)",
+   "platforms": [
+    {
+     "numbers": [
+      "1",
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "terminating",
+     "door": null,
+     "certain": false
+    },
+    {
+     "numbers": [
+      "1",
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "originating",
+     "door": null,
+     "certain": false
+    }
+   ]
+  },
+  {
+   "line_code": "THR",
+   "station": "Sanpada",
+   "source": "https://en.wikipedia.org/wiki/Sanpada_railway_station (platforms: PF 1 towards Thane, PF 2 towards Vashi, revision of 2026-08-23, retrieved 2026-09-25); door sides: OpenStreetMap platform areas beside each track (scripts/build_platforms.py, 2026-09-25)",
+   "platforms": [
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "both",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": "both",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "THR",
+   "station": "Juinagar",
+   "source": "https://en.wikipedia.org/wiki/Juinagar_railway_station (platforms: PF 1 towards Panvel/Nerul, PF 2 towards Thane, revision of 2026-08-18, retrieved 2026-09-25); door sides: OpenStreetMap platform areas beside each track (scripts/build_platforms.py, 2026-09-25)",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "both",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": "both",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "THR",
+   "station": "Nerul",
+   "source": "https://en.wikipedia.org/wiki/Nerul_railway_station (platforms: PF 1 for trains going to Panvel or terminating here, PF 2 towards Thane, revision of 2026-08-23, retrieved 2026-09-25); door sides: OpenStreetMap platform areas beside each track (scripts/build_platforms.py, 2026-09-25)",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "both",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "terminating",
+     "door": "both",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": "both",
+     "certain": true
+    }
+   ]
+  }
+ ]
+}

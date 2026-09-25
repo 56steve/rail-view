@@ -1,16 +1,23 @@
-"""Derive each station's platforms, and which side the doors open, from
-OpenStreetMap.
+"""Build the station platform table: which platform each train calls
+at, and which side its doors open.
 
-    uv run python scripts/build_platforms.py [--refresh]
+    uv run python scripts/build_platforms.py [--derive-only] [--refresh]
 
 For every (line, station) in network.json this pairs the station's
-numbered platforms with the tracks beside them, works out which pair of
-tracks (slow / fast, or "any" where the line has one pair) and which
-direction (UP / DN) each track serves, and on which side of the train the
-platform lies. Numbers come from `ref`s on stop positions (a node on one
-track) and on platform areas; corridors from track names; directions from
-left-hand running. Writes backend/data/platforms/derived.json (a build
-intermediate, not committed) and prints a coverage report.
+numbered platforms in OpenStreetMap with the tracks beside them, works out
+which pair of tracks (slow / fast, or "any" where the line has one pair)
+and which direction (UP / DN) each track serves, and on which side of the
+train the platform lies. Numbers come from `ref`s on stop positions (a
+node on one track) and on platform areas; corridors from track names;
+directions from left-hand running. That derivation is written to
+backend/data/platforms/derived.json (a build intermediate, not committed).
+
+Stations in backend/data/platforms/curated.json, each citing its source,
+then replace the derived ones wholesale, and the result is written to
+backend/app/data/generated/platforms.json (committed) after checking it
+loads. The script prints the coverage per line and station, where OSM and
+the curated data disagree, and what the derivation couldn't place.
+--derive-only stops after derived.json.
 
 Reads the Overpass cache written by build_osm_data.py; the only query of
 its own is the stop positions (cache key `stop_positions`).
@@ -27,8 +34,9 @@ import sys
 from collections import defaultdict
 from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Literal, TypedDict
+from typing import TypedDict
 
 from build_osm_data import (
     BACKEND_DIR,
@@ -64,11 +72,23 @@ from shapely.geometry import LineString, Point, Polygon
 from shapely.ops import substring
 
 from app.services.geometry import to_local
+from app.services.platforms import (
+    PLATFORMS_JSON,
+    Corridor,
+    Direction,
+    DoorSide,
+    PlatformDataError,
+    StopRole,
+    load_platform_table,
+)
 
-DERIVED_OUT = BACKEND_DIR / "data" / "platforms" / "derived.json"
+PLATFORMS_DIR = BACKEND_DIR / "data" / "platforms"
+DERIVED_OUT = PLATFORMS_DIR / "derived.json"
+CURATED_IN = PLATFORMS_DIR / "curated.json"
+ATTRIBUTION = (
+    "© OpenStreetMap contributors (ODbL); curated entries cite their sources in backend/data/platforms/curated.json"
+)
 
-Direction = Literal["UP", "DN"]
-Corridor = Literal["slow", "fast", "any"]
 Point2 = tuple[float, float]
 
 # A route's stations run DN (away from CSMT / Churchgate / Thane) except
@@ -101,8 +121,8 @@ class PlatformJson(TypedDict):
     numbers: list[str]
     corridor: Corridor
     direction: Direction
-    role: Literal["originating", "through", "terminating"]
-    door: Door | None
+    role: StopRole
+    door: DoorSide | None
     certain: bool
 
 
@@ -241,6 +261,7 @@ class StationSite:
     forward_direction: Direction  # the direction of travel along `tangent`
     fast_halt: bool
     single_pair: bool  # the line has one pair of tracks here
+    terminus: bool  # a route of the line starts or ends here
 
 
 def _unit(dx: float, dy: float) -> Point2:
@@ -306,9 +327,11 @@ def station_sites(network: Mapping[str, object]) -> list[StationSite]:
     if not isinstance(lines, list):
         raise BuildError("network.json: lines must be a list")
     fast_halts: dict[tuple[str, str], bool] = defaultdict(bool)
+    termini: set[tuple[str, str]] = set()
     for route in routes:
         for station in route["stations"]:
             fast_halts[(route["line_code"], station["name"])] |= bool(station["fast_halt"])
+        termini.update((route["line_code"], route["stations"][end]["name"]) for end in (0, -1))
 
     single_pairs = single_pair_stations(routes)
     sites: dict[tuple[str, str], StationSite] = {}
@@ -332,6 +355,7 @@ def station_sites(network: Mapping[str, object]) -> list[StationSite]:
                     forward_direction=direction,
                     fast_halt=fast_halts[key],
                     single_pair=key in single_pairs,
+                    terminus=key in termini,
                 )
     return list(sites.values())
 
@@ -784,6 +808,12 @@ def _paired_by_use(line_tracks: Sequence[Track]) -> dict[Corridor, tuple[Track, 
     return None
 
 
+def _side_by_side(pair: tuple[Track, Track], line_tracks: Sequence[Track]) -> bool:
+    """Whether no other running line of the line lies between the pair."""
+    low, high = sorted((pair[0].offset, pair[1].offset))
+    return not any(low < track.offset < high for track in line_tracks)
+
+
 def classify(site: StationSite, tracks: Sequence[Track]) -> Classification:
     """Corridor and direction for each of the line's tracks. Corridor from
     the track's name (or its neighbour's, where four or six lines pair up,
@@ -795,10 +825,10 @@ def classify(site: StationSite, tracks: Sequence[Track]) -> Classification:
     pairs: dict[Corridor, tuple[Track, Track]] = {}
     if site.single_pair:
         pair = _running_pair(line_tracks)
-        if pair is not None:
+        if pair is not None and _side_by_side(pair, line_tracks):
             pairs["any"] = pair
         else:
-            unresolved.append(f"{len(line_tracks)} running lines and no single named pair")
+            unresolved.append(f"{len(line_tracks)} running lines and no single named pair side by side")
     elif (by_use := _paired_by_use(line_tracks)) is not None:
         pairs.update(by_use)
     else:
@@ -810,10 +840,10 @@ def classify(site: StationSite, tracks: Sequence[Track]) -> Classification:
                 unresolved.append(f"running line at {track.offset:+.0f} m: no slow/fast name")
         for corridor, candidates in groups.items():
             pair = _running_pair(candidates)
-            if pair is not None:
+            if pair is not None and _side_by_side(pair, line_tracks):
                 pairs[corridor] = pair
             else:
-                unresolved.append(f"{corridor}: {len(candidates)} running lines and no single named pair")
+                unresolved.append(f"{corridor}: {len(candidates)} running lines and no single named pair side by side")
 
     assignments: dict[int, tuple[Corridor, Direction]] = {}
     for corridor, pair in pairs.items():
@@ -856,9 +886,10 @@ def _stop_platforms(track: Track, stop_point: Point2, osm: OsmData) -> list[Poly
 def entries_for_station(
     site: StationSite, tracks: Sequence[Track], pairing: Pairing, classification: Classification, osm: OsmData
 ) -> tuple[list[PlatformJson], list[str]]:
-    """One through entry per (corridor, direction); numbers sharing it
-    merge, and then vary from train to train, so only a lone number is
-    certain."""
+    """One through entry per (corridor, direction). Numbers sharing it
+    merge, and then vary from train to train, as does the platform at a
+    terminus (trains reverse on whichever track they came in on): only a
+    lone number away from the termini is certain."""
     grouped: dict[tuple[Corridor, Direction], list[tuple[str, Door | None]]] = defaultdict(list)
     unresolved: list[str] = []
     accepted = SHARED_TRACK_LINES.get(site.line_code, (site.line_code,))
@@ -886,7 +917,7 @@ def entries_for_station(
                 direction=direction,
                 role="through",
                 door=common_door(door for _, door in numbered),
-                certain=len(numbers) == 1,
+                certain=len(numbers) == 1 and not site.terminus,
             )
         )
     return entries, unresolved
@@ -958,7 +989,7 @@ def print_coverage(sites: Sequence[StationSite], stations: Mapping[tuple[str, st
         platforms = station["platforms"] if station else []
         category, status = coverage_status(site, platforms)
         totals[category] += 1
-        source = f" [{station['source'].split(' ')[0]}]" if station and platforms else ""
+        source = f" [{station['source']}]" if station and platforms else ""
         print(f"    {site.station:<24} {status}{source}")
     print(f"\n  totals: {totals['full']} full, {totals['partial']} partial, {totals['none']} none")
 
@@ -973,6 +1004,121 @@ def print_unresolved(stations: Mapping[tuple[str, str], DerivedStationJson]) -> 
     for (line_code, name), station in stations.items():
         for note in station["unresolved"]:
             print(f"  {line_code} {name}: {note}")
+
+
+# --------------------------------------------------------------------------
+# Curated stations and the merge
+
+
+def load_curated(path: Path, sites: Sequence[StationSite]) -> dict[tuple[str, str], StationTable]:
+    """The curated stations, keyed (line, station). Each must be a station
+    of its line in network.json and cite a source; the entries themselves
+    are checked by the app's loader once merged."""
+    try:
+        raw = json.loads(path.read_text())
+    except (FileNotFoundError, json.JSONDecodeError) as exc:
+        raise BuildError(f"{path}: {exc}") from exc
+    stations = raw.get("stations") if isinstance(raw, dict) else None
+    if not isinstance(stations, list):
+        raise BuildError(f"{path}: expected an object with a list of stations")
+    known = {(site.line_code, site.station) for site in sites}
+    curated: dict[tuple[str, str], StationTable] = {}
+    for station in stations:
+        try:
+            key = (station["line_code"], station["station"])
+            source = station["source"]
+            platforms = station["platforms"]
+        except (KeyError, TypeError) as exc:
+            raise BuildError(f"{path}: malformed station {station!r} ({exc})") from exc
+        if key not in known:
+            raise BuildError(f"{path}: {key} is not a station of that line in network.json")
+        if key in curated:
+            raise BuildError(f"{path}: {key} is listed twice")
+        if not isinstance(source, str) or not source.strip():
+            raise BuildError(f"{path}: {key} has no source")
+        if not isinstance(platforms, list) or not platforms:
+            raise BuildError(f"{path}: {key} has no platforms")
+        curated[key] = StationTable(line_code=key[0], station=key[1], source=source, platforms=platforms)
+    return curated
+
+
+def merge_tables(
+    sites: Sequence[StationSite],
+    derived: Mapping[tuple[str, str], DerivedStationJson],
+    curated: Mapping[tuple[str, str], StationTable],
+) -> dict[tuple[str, str], StationTable]:
+    """Derived stations, each replaced wholesale by its curated one, in
+    line then route order; stations with no entries are left out."""
+    merged: dict[tuple[str, str], StationTable] = {}
+    for site in sites:
+        key = (site.line_code, site.station)
+        if key in curated:
+            merged[key] = StationTable(
+                line_code=key[0], station=key[1], source="curated", platforms=curated[key]["platforms"]
+            )
+        elif derived[key]["platforms"]:
+            merged[key] = StationTable(line_code=key[0], station=key[1], source="osm", platforms=derived[key]["platforms"])
+    return merged
+
+
+def _same_corridor(a: Corridor, b: Corridor) -> bool:
+    return a == b or "any" in (a, b)
+
+
+def disagreements(
+    derived: Mapping[tuple[str, str], DerivedStationJson], curated: Mapping[tuple[str, str], StationTable]
+) -> list[str]:
+    """Where a curated station contradicts what OSM gives: an OSM platform
+    number the curated entries for that corridor and direction don't list
+    (through entries first, else any role, as at termini), or door sides
+    that can't both hold."""
+    notes: list[str] = []
+    for key, station in curated.items():
+        for osm_entry in derived[key]["platforms"]:
+            facing = [
+                entry
+                for entry in station["platforms"]
+                if entry["direction"] == osm_entry["direction"] and _same_corridor(entry["corridor"], osm_entry["corridor"])
+            ]
+            matching = [entry for entry in facing if entry["role"] == "through"] or facing
+            label = f"{key[0]} {key[1]}: {osm_entry['corridor']} {osm_entry['direction']}"
+            osm_numbers = "/".join(osm_entry["numbers"])
+            if not matching:
+                notes.append(f"{label}: OSM has PF {osm_numbers}, curated has nothing")
+                continue
+            curated_numbers = {number for entry in matching for number in entry["numbers"]}
+            if not set(osm_entry["numbers"]) <= curated_numbers:
+                listed = "/".join(sorted(curated_numbers, key=platform_sort_key))
+                notes.append(f"{label}: OSM has PF {osm_numbers}, curated has PF {listed}")
+            for entry in matching:
+                door = entry["door"]
+                if (
+                    set(entry["numbers"]) & set(osm_entry["numbers"])
+                    and door is not None
+                    and osm_entry["door"] is not None
+                    and common_door((door, osm_entry["door"])) is None
+                ):
+                    notes.append(f"{label}: PF {osm_numbers} doors {osm_entry['door']} in OSM, {door} curated")
+    return notes
+
+
+def write_platform_table(path: Path, sites: Sequence[StationSite], stations: Sequence[StationTable]) -> None:
+    """Writes the table, having checked it loads through the app's own
+    loader (a failing table never replaces a good one)."""
+    payload = {
+        "generated_at": datetime.now(UTC).isoformat(timespec="seconds"),
+        "attribution": ATTRIBUTION,
+        "single_pair": [[site.line_code, site.station] for site in sites if site.single_pair],
+        "stations": list(stations),
+    }
+    staged = path.with_name(f"{path.stem}.staged.json")
+    write_json(staged, payload)
+    try:
+        load_platform_table(staged)
+    except PlatformDataError as exc:
+        staged.unlink()
+        raise BuildError(f"the merged platform table doesn't load: {exc}") from exc
+    staged.replace(path)
 
 
 # --------------------------------------------------------------------------
@@ -993,6 +1139,7 @@ def write_json(path: Path, payload: object) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--derive-only", action="store_true", help="stop after writing data/platforms/derived.json")
     parser.add_argument("--refresh", action="store_true", help="ignore the local Overpass cache")
     args = parser.parse_args()
 
@@ -1002,7 +1149,23 @@ def main() -> None:
     derived = derive_all(sites, osm)
     write_json(DERIVED_OUT, {f"{line}|{name}": station for (line, name), station in derived.items()})
     print(f"wrote {DERIVED_OUT.relative_to(BACKEND_DIR)} ({len(derived)} stations)")
-    print_coverage(sites, derived)
+    if args.derive_only:
+        print_coverage(sites, derived)
+        print_unresolved(derived)
+        return
+
+    curated = load_curated(CURATED_IN, sites)
+    merged = merge_tables(sites, derived, curated)
+    write_platform_table(PLATFORMS_JSON, sites, list(merged.values()))
+    print(
+        f"wrote {PLATFORMS_JSON.relative_to(BACKEND_DIR)} ({len(merged)} stations: "
+        f"{sum(s['source'] == 'curated' for s in merged.values())} curated, "
+        f"{sum(s['source'] == 'osm' for s in merged.values())} from OSM)"
+    )
+    print_coverage(sites, merged)
+    print("\nwhere OSM and the curated stations disagree")
+    for note in disagreements(derived, curated) or ["(none)"]:
+        print(f"  {note}")
     print_unresolved(derived)
 
 

@@ -1,0 +1,3418 @@
+{
+ "generated_at": "2026-09-25T12:23:40+00:00",
+ "attribution": "© OpenStreetMap contributors (ODbL); curated entries cite their sources in backend/data/platforms/curated.json",
+ "single_pair": [
+  [
+   "CR",
+   "Shahad"
+  ],
+  [
+   "CR",
+   "Ambivli"
+  ],
+  [
+   "CR",
+   "Titwala"
+  ],
+  [
+   "CR",
+   "Khadavli"
+  ],
+  [
+   "CR",
+   "Vasind"
+  ],
+  [
+   "CR",
+   "Asangaon"
+  ],
+  [
+   "CR",
+   "Atgaon"
+  ],
+  [
+   "CR",
+   "Thansit"
+  ],
+  [
+   "CR",
+   "Khardi"
+  ],
+  [
+   "CR",
+   "Umbermali"
+  ],
+  [
+   "CR",
+   "Kasara"
+  ],
+  [
+   "CR",
+   "Vithalwadi"
+  ],
+  [
+   "CR",
+   "Ulhasnagar"
+  ],
+  [
+   "CR",
+   "Ambarnath"
+  ],
+  [
+   "CR",
+   "Badlapur"
+  ],
+  [
+   "CR",
+   "Vangani"
+  ],
+  [
+   "CR",
+   "Shelu"
+  ],
+  [
+   "CR",
+   "Neral"
+  ],
+  [
+   "CR",
+   "Bhivpuri Road"
+  ],
+  [
+   "CR",
+   "Karjat"
+  ],
+  [
+   "CR",
+   "Palasdhari"
+  ],
+  [
+   "CR",
+   "Kelavli"
+  ],
+  [
+   "CR",
+   "Dolavli"
+  ],
+  [
+   "CR",
+   "Lowjee"
+  ],
+  [
+   "CR",
+   "Khopoli"
+  ],
+  [
+   "HR",
+   "CSMT"
+  ],
+  [
+   "HR",
+   "Masjid"
+  ],
+  [
+   "HR",
+   "Sandhurst Road"
+  ],
+  [
+   "HR",
+   "Dockyard Road"
+  ],
+  [
+   "HR",
+   "Reay Road"
+  ],
+  [
+   "HR",
+   "Cotton Green"
+  ],
+  [
+   "HR",
+   "Sewri"
+  ],
+  [
+   "HR",
+   "Wadala Road"
+  ],
+  [
+   "HR",
+   "GTB Nagar"
+  ],
+  [
+   "HR",
+   "Chunabhatti"
+  ],
+  [
+   "HR",
+   "Kurla"
+  ],
+  [
+   "HR",
+   "Tilak Nagar"
+  ],
+  [
+   "HR",
+   "Chembur"
+  ],
+  [
+   "HR",
+   "Govandi"
+  ],
+  [
+   "HR",
+   "Mankhurd"
+  ],
+  [
+   "HR",
+   "Vashi"
+  ],
+  [
+   "HR",
+   "Sanpada"
+  ],
+  [
+   "HR",
+   "Juinagar"
+  ],
+  [
+   "HR",
+   "Nerul"
+  ],
+  [
+   "HR",
+   "Seawoods Darave Karave"
+  ],
+  [
+   "HR",
+   "Belapur CBD"
+  ],
+  [
+   "HR",
+   "Kharghar"
+  ],
+  [
+   "HR",
+   "Mansarovar"
+  ],
+  [
+   "HR",
+   "Khandeshwar"
+  ],
+  [
+   "HR",
+   "Panvel"
+  ],
+  [
+   "HR",
+   "King's Circle"
+  ],
+  [
+   "HR",
+   "Mahim"
+  ],
+  [
+   "HR",
+   "Bandra"
+  ],
+  [
+   "HR",
+   "Khar Road"
+  ],
+  [
+   "HR",
+   "Santacruz"
+  ],
+  [
+   "HR",
+   "Vile Parle"
+  ],
+  [
+   "HR",
+   "Andheri"
+  ],
+  [
+   "HR",
+   "Jogeshwari"
+  ],
+  [
+   "HR",
+   "Ram Mandir"
+  ],
+  [
+   "HR",
+   "Goregaon"
+  ],
+  [
+   "THR",
+   "Thane"
+  ],
+  [
+   "THR",
+   "Digha Gaon"
+  ],
+  [
+   "THR",
+   "Airoli"
+  ],
+  [
+   "THR",
+   "Rabale"
+  ],
+  [
+   "THR",
+   "Ghansoli"
+  ],
+  [
+   "THR",
+   "Kopar Khairane"
+  ],
+  [
+   "THR",
+   "Turbhe"
+  ],
+  [
+   "THR",
+   "Sanpada"
+  ],
+  [
+   "THR",
+   "Vashi"
+  ],
+  [
+   "THR",
+   "Juinagar"
+  ],
+  [
+   "THR",
+   "Nerul"
+  ],
+  [
+   "THR",
+   "Seawoods Darave Karave"
+  ],
+  [
+   "THR",
+   "Belapur CBD"
+  ],
+  [
+   "THR",
+   "Kharghar"
+  ],
+  [
+   "THR",
+   "Mansarovar"
+  ],
+  [
+   "THR",
+   "Khandeshwar"
+  ],
+  [
+   "THR",
+   "Panvel"
+  ]
+ ],
+ "stations": [
+  {
+   "line_code": "WR",
+   "station": "Churchgate",
+   "source": "curated",
+   "platforms": [
+    {
+     "numbers": [
+      "1",
+      "2"
+     ],
+     "corridor": "slow",
+     "direction": "DN",
+     "role": "originating",
+     "door": "both",
+     "certain": false
+    },
+    {
+     "numbers": [
+      "3",
+      "4"
+     ],
+     "corridor": "fast",
+     "direction": "DN",
+     "role": "originating",
+     "door": "both",
+     "certain": false
+    },
+    {
+     "numbers": [
+      "1",
+      "2"
+     ],
+     "corridor": "slow",
+     "direction": "UP",
+     "role": "terminating",
+     "door": "both",
+     "certain": false
+    },
+    {
+     "numbers": [
+      "3",
+      "4"
+     ],
+     "corridor": "fast",
+     "direction": "UP",
+     "role": "terminating",
+     "door": "both",
+     "certain": false
+    }
+   ]
+  },
+  {
+   "line_code": "WR",
+   "station": "Marine Lines",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "3"
+     ],
+     "corridor": "fast",
+     "direction": "DN",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "4"
+     ],
+     "corridor": "fast",
+     "direction": "UP",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "slow",
+     "direction": "DN",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "slow",
+     "direction": "UP",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "WR",
+   "station": "Charni Road",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "3"
+     ],
+     "corridor": "fast",
+     "direction": "DN",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "4"
+     ],
+     "corridor": "fast",
+     "direction": "UP",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "slow",
+     "direction": "DN",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "slow",
+     "direction": "UP",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "WR",
+   "station": "Grant Road",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "4"
+     ],
+     "corridor": "fast",
+     "direction": "UP",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "WR",
+   "station": "Mahalaxmi",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "slow",
+     "direction": "DN",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "slow",
+     "direction": "UP",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "WR",
+   "station": "Lower Parel",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "3"
+     ],
+     "corridor": "fast",
+     "direction": "DN",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "slow",
+     "direction": "DN",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "slow",
+     "direction": "UP",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "WR",
+   "station": "Dadar",
+   "source": "curated",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "slow",
+     "direction": "DN",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "slow",
+     "direction": "UP",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "3",
+      "5"
+     ],
+     "corridor": "fast",
+     "direction": "DN",
+     "role": "through",
+     "door": "left",
+     "certain": false
+    },
+    {
+     "numbers": [
+      "4"
+     ],
+     "corridor": "fast",
+     "direction": "UP",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "WR",
+   "station": "Mahim",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "3"
+     ],
+     "corridor": "fast",
+     "direction": "DN",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "4"
+     ],
+     "corridor": "fast",
+     "direction": "UP",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "slow",
+     "direction": "DN",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "slow",
+     "direction": "UP",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "WR",
+   "station": "Bandra",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "4"
+     ],
+     "corridor": "fast",
+     "direction": "DN",
+     "role": "through",
+     "door": null,
+     "certain": true
+    },
+    {
+     "numbers": [
+      "5"
+     ],
+     "corridor": "fast",
+     "direction": "UP",
+     "role": "through",
+     "door": null,
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "WR",
+   "station": "Khar Road",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "5"
+     ],
+     "corridor": "fast",
+     "direction": "DN",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "6"
+     ],
+     "corridor": "fast",
+     "direction": "UP",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "3"
+     ],
+     "corridor": "slow",
+     "direction": "DN",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "4"
+     ],
+     "corridor": "slow",
+     "direction": "UP",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "WR",
+   "station": "Santacruz",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "5"
+     ],
+     "corridor": "fast",
+     "direction": "DN",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "6"
+     ],
+     "corridor": "fast",
+     "direction": "UP",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "3"
+     ],
+     "corridor": "slow",
+     "direction": "DN",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "4"
+     ],
+     "corridor": "slow",
+     "direction": "UP",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "WR",
+   "station": "Vile Parle",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "5"
+     ],
+     "corridor": "fast",
+     "direction": "DN",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "6"
+     ],
+     "corridor": "fast",
+     "direction": "UP",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "3"
+     ],
+     "corridor": "slow",
+     "direction": "DN",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "4"
+     ],
+     "corridor": "slow",
+     "direction": "UP",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "WR",
+   "station": "Andheri",
+   "source": "curated",
+   "platforms": [
+    {
+     "numbers": [
+      "3"
+     ],
+     "corridor": "slow",
+     "direction": "DN",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "5"
+     ],
+     "corridor": "slow",
+     "direction": "UP",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "6"
+     ],
+     "corridor": "fast",
+     "direction": "DN",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "7"
+     ],
+     "corridor": "fast",
+     "direction": "UP",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "4"
+     ],
+     "corridor": "slow",
+     "direction": "DN",
+     "role": "originating",
+     "door": null,
+     "certain": false
+    },
+    {
+     "numbers": [
+      "4"
+     ],
+     "corridor": "slow",
+     "direction": "UP",
+     "role": "originating",
+     "door": null,
+     "certain": false
+    },
+    {
+     "numbers": [
+      "8",
+      "9"
+     ],
+     "corridor": "fast",
+     "direction": "DN",
+     "role": "originating",
+     "door": null,
+     "certain": false
+    },
+    {
+     "numbers": [
+      "8",
+      "9"
+     ],
+     "corridor": "fast",
+     "direction": "UP",
+     "role": "originating",
+     "door": null,
+     "certain": false
+    }
+   ]
+  },
+  {
+   "line_code": "WR",
+   "station": "Jogeshwari",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "5"
+     ],
+     "corridor": "fast",
+     "direction": "DN",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "6"
+     ],
+     "corridor": "fast",
+     "direction": "UP",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "3"
+     ],
+     "corridor": "slow",
+     "direction": "DN",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "4"
+     ],
+     "corridor": "slow",
+     "direction": "UP",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "WR",
+   "station": "Ram Mandir",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "3"
+     ],
+     "corridor": "slow",
+     "direction": "DN",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "4"
+     ],
+     "corridor": "slow",
+     "direction": "UP",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "WR",
+   "station": "Borivali",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "3"
+     ],
+     "corridor": "slow",
+     "direction": "DN",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "4"
+     ],
+     "corridor": "slow",
+     "direction": "UP",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "CR",
+   "station": "CSMT",
+   "source": "curated",
+   "platforms": [
+    {
+     "numbers": [
+      "3",
+      "4",
+      "5",
+      "6",
+      "7"
+     ],
+     "corridor": "slow",
+     "direction": "DN",
+     "role": "originating",
+     "door": null,
+     "certain": false
+    },
+    {
+     "numbers": [
+      "3",
+      "4",
+      "5",
+      "6",
+      "7"
+     ],
+     "corridor": "slow",
+     "direction": "UP",
+     "role": "terminating",
+     "door": null,
+     "certain": false
+    },
+    {
+     "numbers": [
+      "3",
+      "4",
+      "5",
+      "6",
+      "7"
+     ],
+     "corridor": "fast",
+     "direction": "DN",
+     "role": "originating",
+     "door": null,
+     "certain": false
+    },
+    {
+     "numbers": [
+      "3",
+      "4",
+      "5",
+      "6",
+      "7"
+     ],
+     "corridor": "fast",
+     "direction": "UP",
+     "role": "terminating",
+     "door": null,
+     "certain": false
+    }
+   ]
+  },
+  {
+   "line_code": "CR",
+   "station": "Masjid",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "3"
+     ],
+     "corridor": "slow",
+     "direction": "DN",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "4"
+     ],
+     "corridor": "slow",
+     "direction": "UP",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "CR",
+   "station": "Byculla",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "3"
+     ],
+     "corridor": "fast",
+     "direction": "DN",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "4"
+     ],
+     "corridor": "fast",
+     "direction": "UP",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "slow",
+     "direction": "DN",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "slow",
+     "direction": "UP",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "CR",
+   "station": "Currey Road",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "slow",
+     "direction": "DN",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "slow",
+     "direction": "UP",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "CR",
+   "station": "Dadar",
+   "source": "curated",
+   "platforms": [
+    {
+     "numbers": [
+      "8"
+     ],
+     "corridor": "slow",
+     "direction": "DN",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "9"
+     ],
+     "corridor": "slow",
+     "direction": "UP",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "9A",
+      "11"
+     ],
+     "corridor": "fast",
+     "direction": "DN",
+     "role": "through",
+     "door": null,
+     "certain": false
+    },
+    {
+     "numbers": [
+      "12"
+     ],
+     "corridor": "fast",
+     "direction": "UP",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "CR",
+   "station": "Matunga",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "3"
+     ],
+     "corridor": "fast",
+     "direction": "DN",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "4"
+     ],
+     "corridor": "fast",
+     "direction": "UP",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "slow",
+     "direction": "DN",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "slow",
+     "direction": "UP",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "CR",
+   "station": "Sion",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "3"
+     ],
+     "corridor": "fast",
+     "direction": "DN",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "slow",
+     "direction": "DN",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "slow",
+     "direction": "UP",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "CR",
+   "station": "Kurla",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "5"
+     ],
+     "corridor": "fast",
+     "direction": "DN",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "6"
+     ],
+     "corridor": "fast",
+     "direction": "UP",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "CR",
+   "station": "Vidyavihar",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "slow",
+     "direction": "DN",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "slow",
+     "direction": "UP",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "CR",
+   "station": "Ghatkopar",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "3"
+     ],
+     "corridor": "fast",
+     "direction": "DN",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "4"
+     ],
+     "corridor": "fast",
+     "direction": "UP",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "slow",
+     "direction": "DN",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "slow",
+     "direction": "UP",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "CR",
+   "station": "Vikhroli",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "3"
+     ],
+     "corridor": "fast",
+     "direction": "DN",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "4"
+     ],
+     "corridor": "fast",
+     "direction": "UP",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "slow",
+     "direction": "DN",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "slow",
+     "direction": "UP",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "CR",
+   "station": "Kanjurmarg",
+   "source": "curated",
+   "platforms": [
+    {
+     "numbers": [
+      "1",
+      "1A"
+     ],
+     "corridor": "slow",
+     "direction": "DN",
+     "role": "through",
+     "door": null,
+     "certain": false
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "slow",
+     "direction": "UP",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "CR",
+   "station": "Bhandup",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "3"
+     ],
+     "corridor": "fast",
+     "direction": "DN",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "4"
+     ],
+     "corridor": "fast",
+     "direction": "UP",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "slow",
+     "direction": "DN",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "slow",
+     "direction": "UP",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "CR",
+   "station": "Nahur",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "slow",
+     "direction": "DN",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "slow",
+     "direction": "UP",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "CR",
+   "station": "Mulund",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "slow",
+     "direction": "DN",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "CR",
+   "station": "Thane",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "5"
+     ],
+     "corridor": "fast",
+     "direction": "DN",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "6"
+     ],
+     "corridor": "fast",
+     "direction": "UP",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "CR",
+   "station": "Kalva",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "slow",
+     "direction": "DN",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "slow",
+     "direction": "UP",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "CR",
+   "station": "Diva",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "5"
+     ],
+     "corridor": "fast",
+     "direction": "DN",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "6"
+     ],
+     "corridor": "fast",
+     "direction": "UP",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "CR",
+   "station": "Kalyan",
+   "source": "curated",
+   "platforms": [
+    {
+     "numbers": [
+      "4",
+      "6"
+     ],
+     "corridor": "fast",
+     "direction": "DN",
+     "role": "through",
+     "door": null,
+     "certain": false
+    },
+    {
+     "numbers": [
+      "5",
+      "7"
+     ],
+     "corridor": "fast",
+     "direction": "UP",
+     "role": "through",
+     "door": null,
+     "certain": false
+    },
+    {
+     "numbers": [
+      "1",
+      "1A"
+     ],
+     "corridor": "slow",
+     "direction": "UP",
+     "role": "originating",
+     "door": null,
+     "certain": false
+    }
+   ]
+  },
+  {
+   "line_code": "CR",
+   "station": "Shahad",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "CR",
+   "station": "Ambivli",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "CR",
+   "station": "Vasind",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "CR",
+   "station": "Asangaon",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "CR",
+   "station": "Atgaon",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "CR",
+   "station": "Thansit",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "CR",
+   "station": "Khardi",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "CR",
+   "station": "Umbermali",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "CR",
+   "station": "Ulhasnagar",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "CR",
+   "station": "Ambarnath",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "3"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "CR",
+   "station": "Badlapur",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "3"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "CR",
+   "station": "Vangani",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "CR",
+   "station": "Shelu",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "CR",
+   "station": "Neral",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "CR",
+   "station": "Khopoli",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "right",
+     "certain": false
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": "right",
+     "certain": false
+    }
+   ]
+  },
+  {
+   "line_code": "HR",
+   "station": "CSMT",
+   "source": "curated",
+   "platforms": [
+    {
+     "numbers": [
+      "1",
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "originating",
+     "door": "both",
+     "certain": false
+    },
+    {
+     "numbers": [
+      "1",
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "terminating",
+     "door": "both",
+     "certain": false
+    }
+   ]
+  },
+  {
+   "line_code": "HR",
+   "station": "Masjid",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "HR",
+   "station": "Dockyard Road",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "HR",
+   "station": "Reay Road",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "HR",
+   "station": "Cotton Green",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "HR",
+   "station": "Sewri",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "HR",
+   "station": "Wadala Road",
+   "source": "curated",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": null,
+     "certain": true
+    },
+    {
+     "numbers": [
+      "4"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": null,
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2",
+      "3"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "originating",
+     "door": null,
+     "certain": false
+    },
+    {
+     "numbers": [
+      "2",
+      "3"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "originating",
+     "door": null,
+     "certain": false
+    },
+    {
+     "numbers": [
+      "2",
+      "3"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "terminating",
+     "door": null,
+     "certain": false
+    },
+    {
+     "numbers": [
+      "2",
+      "3"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "terminating",
+     "door": null,
+     "certain": false
+    }
+   ]
+  },
+  {
+   "line_code": "HR",
+   "station": "GTB Nagar",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": null,
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "HR",
+   "station": "Chunabhatti",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "HR",
+   "station": "Kurla",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "7"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "8"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "HR",
+   "station": "Tilak Nagar",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "HR",
+   "station": "Chembur",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "HR",
+   "station": "Govandi",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "both",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "HR",
+   "station": "Mankhurd",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "HR",
+   "station": "Vashi",
+   "source": "curated",
+   "platforms": [
+    {
+     "numbers": [
+      "3",
+      "4"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": null,
+     "certain": false
+    },
+    {
+     "numbers": [
+      "3",
+      "4"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": null,
+     "certain": false
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "terminating",
+     "door": null,
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "originating",
+     "door": null,
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "HR",
+   "station": "Sanpada",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "3"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "both",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "4"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": "both",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "HR",
+   "station": "Juinagar",
+   "source": "curated",
+   "platforms": [
+    {
+     "numbers": [
+      "3"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "both",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "4"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": "both",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "HR",
+   "station": "Nerul",
+   "source": "curated",
+   "platforms": [
+    {
+     "numbers": [
+      "3"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "both",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "4"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": "both",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "HR",
+   "station": "Seawoods Darave Karave",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "both",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": "both",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "HR",
+   "station": "Belapur CBD",
+   "source": "curated",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": null,
+     "certain": true
+    },
+    {
+     "numbers": [
+      "3"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": null,
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "originating",
+     "door": null,
+     "certain": false
+    }
+   ]
+  },
+  {
+   "line_code": "HR",
+   "station": "Kharghar",
+   "source": "curated",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "both",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "HR",
+   "station": "Mansarovar",
+   "source": "curated",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "both",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": "both",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "HR",
+   "station": "Khandeshwar",
+   "source": "curated",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "both",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "HR",
+   "station": "King's Circle",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "HR",
+   "station": "Mahim",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "5"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "6"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "HR",
+   "station": "Bandra",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "6"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": null,
+     "certain": true
+    },
+    {
+     "numbers": [
+      "7"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": null,
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "HR",
+   "station": "Khar Road",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "HR",
+   "station": "Santacruz",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "HR",
+   "station": "Andheri",
+   "source": "curated",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "HR",
+   "station": "Jogeshwari",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": "left",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "HR",
+   "station": "Ram Mandir",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "HR",
+   "station": "Goregaon",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "left",
+     "certain": false
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": "left",
+     "certain": false
+    }
+   ]
+  },
+  {
+   "line_code": "THR",
+   "station": "Thane",
+   "source": "curated",
+   "platforms": [
+    {
+     "numbers": [
+      "9",
+      "10"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "originating",
+     "door": null,
+     "certain": false
+    },
+    {
+     "numbers": [
+      "9",
+      "10"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "terminating",
+     "door": null,
+     "certain": false
+    }
+   ]
+  },
+  {
+   "line_code": "THR",
+   "station": "Airoli",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "both",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": "both",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "THR",
+   "station": "Rabale",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "both",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": "both",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "THR",
+   "station": "Ghansoli",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "both",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": "both",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "THR",
+   "station": "Kopar Khairane",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "both",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": "both",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "THR",
+   "station": "Sanpada",
+   "source": "curated",
+   "platforms": [
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "both",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": "both",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "THR",
+   "station": "Vashi",
+   "source": "curated",
+   "platforms": [
+    {
+     "numbers": [
+      "1",
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "terminating",
+     "door": null,
+     "certain": false
+    },
+    {
+     "numbers": [
+      "1",
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "originating",
+     "door": null,
+     "certain": false
+    }
+   ]
+  },
+  {
+   "line_code": "THR",
+   "station": "Juinagar",
+   "source": "curated",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "both",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": "both",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "THR",
+   "station": "Nerul",
+   "source": "curated",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "both",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "terminating",
+     "door": "both",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": "both",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "THR",
+   "station": "Seawoods Darave Karave",
+   "source": "osm",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "both",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": "both",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "THR",
+   "station": "Belapur CBD",
+   "source": "curated",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": null,
+     "certain": true
+    },
+    {
+     "numbers": [
+      "3"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": null,
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "originating",
+     "door": null,
+     "certain": false
+    }
+   ]
+  },
+  {
+   "line_code": "THR",
+   "station": "Kharghar",
+   "source": "curated",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "both",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "THR",
+   "station": "Mansarovar",
+   "source": "curated",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "both",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": "both",
+     "certain": true
+    }
+   ]
+  },
+  {
+   "line_code": "THR",
+   "station": "Khandeshwar",
+   "source": "curated",
+   "platforms": [
+    {
+     "numbers": [
+      "1"
+     ],
+     "corridor": "any",
+     "direction": "DN",
+     "role": "through",
+     "door": "both",
+     "certain": true
+    },
+    {
+     "numbers": [
+      "2"
+     ],
+     "corridor": "any",
+     "direction": "UP",
+     "role": "through",
+     "door": "right",
+     "certain": true
+    }
+   ]
+  }
+ ]
+}
