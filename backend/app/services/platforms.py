@@ -127,7 +127,7 @@ def _parse_entry(entry: object, station_key: tuple[str, str]) -> PlatformEntry:
     if not isinstance(entry, dict):
         raise PlatformDataError(f"{station_key}: platform entry must be an object, got {entry!r}")
     try:
-        numbers = tuple(entry["numbers"])
+        raw_numbers = entry["numbers"]
         corridor = entry["corridor"]
         direction = entry["direction"]
         role = entry["role"]
@@ -135,6 +135,17 @@ def _parse_entry(entry: object, station_key: tuple[str, str]) -> PlatformEntry:
         certain = entry["certain"]
     except (KeyError, TypeError) as exc:
         raise PlatformDataError(f"{station_key}: malformed platform entry ({exc})") from exc
+    # A bare string (e.g. "10") is iterable character-by-character, which
+    # would silently turn one platform number into several: reject it.
+    if (
+        not isinstance(raw_numbers, list)
+        or not raw_numbers
+        or not all(isinstance(n, str) for n in raw_numbers)
+    ):
+        raise PlatformDataError(
+            f"{station_key}: numbers must be a non-empty list of strings, got {raw_numbers!r}"
+        )
+    numbers = tuple(raw_numbers)
     _require(corridor, _CORRIDORS, "corridor", station_key)
     _require(direction, _DIRECTIONS, "direction", station_key)
     _require(role, _ROLES, "role", station_key)

@@ -1,4 +1,6 @@
 import json
+from collections.abc import Iterator
+from pathlib import Path
 
 import pytest
 
@@ -9,6 +11,16 @@ from app.services.platforms import (
     load_platform_table,
     resolve_platform,
 )
+
+
+@pytest.fixture(autouse=True)
+def _reset_platform_table_cache() -> Iterator[None]:
+    """`load_platform_table` is `lru_cache`d on its path argument; clear it
+    around every test in this module so `tmp_path` fixtures never leak
+    into another test's cache entry."""
+    load_platform_table.cache_clear()
+    yield
+    load_platform_table.cache_clear()
 
 ANDHERI_WR = (
     PlatformEntry(numbers=("3",), corridor="slow", direction="DN", role="through", door="left", certain=True),
@@ -112,48 +124,43 @@ GOOD_TABLE = {
 }
 
 
-def test_load_platform_table_parses_a_good_file(tmp_path) -> None:
+def test_load_platform_table_parses_a_good_file(tmp_path: Path) -> None:
     path = tmp_path / "platforms.json"
     path.write_text(json.dumps(GOOD_TABLE))
-    load_platform_table.cache_clear()
-    try:
-        table = load_platform_table(path)
-        assert table.attribution == "test fixture"
-        assert table.single_pair == frozenset({("CR", "Titwala")})
-        entries = table.entries("WR", "Andheri")
-        assert len(entries) == 1 and entries[0].numbers == ("3",)
-    finally:
-        load_platform_table.cache_clear()
+    table = load_platform_table(path)
+    assert table.attribution == "test fixture"
+    assert table.single_pair == frozenset({("CR", "Titwala")})
+    entries = table.entries("WR", "Andheri")
+    assert len(entries) == 1 and entries[0].numbers == ("3",)
 
 
-def test_load_platform_table_missing_file_raises(tmp_path) -> None:
-    load_platform_table.cache_clear()
-    try:
-        with pytest.raises(PlatformDataError):
-            load_platform_table(tmp_path / "does-not-exist.json")
-    finally:
-        load_platform_table.cache_clear()
+def test_load_platform_table_missing_file_raises(tmp_path: Path) -> None:
+    with pytest.raises(PlatformDataError):
+        load_platform_table(tmp_path / "does-not-exist.json")
 
 
-def test_load_platform_table_bad_json_raises(tmp_path) -> None:
+def test_load_platform_table_bad_json_raises(tmp_path: Path) -> None:
     path = tmp_path / "platforms.json"
     path.write_text("{not valid json")
-    load_platform_table.cache_clear()
-    try:
-        with pytest.raises(PlatformDataError):
-            load_platform_table(path)
-    finally:
-        load_platform_table.cache_clear()
+    with pytest.raises(PlatformDataError):
+        load_platform_table(path)
 
 
-def test_load_platform_table_bad_corridor_value_raises(tmp_path) -> None:
+def test_load_platform_table_bad_corridor_value_raises(tmp_path: Path) -> None:
     bad = json.loads(json.dumps(GOOD_TABLE))
     bad["stations"][0]["platforms"][0]["corridor"] = "Fast"
     path = tmp_path / "platforms.json"
     path.write_text(json.dumps(bad))
-    load_platform_table.cache_clear()
-    try:
-        with pytest.raises(PlatformDataError):
-            load_platform_table(path)
-    finally:
-        load_platform_table.cache_clear()
+    with pytest.raises(PlatformDataError):
+        load_platform_table(path)
+
+
+def test_load_platform_table_string_numbers_raises(tmp_path: Path) -> None:
+    # "numbers": "10" is iterable character-by-character in Python, which
+    # would silently produce platforms ("1", "0") instead of ("10",).
+    bad = json.loads(json.dumps(GOOD_TABLE))
+    bad["stations"][0]["platforms"][0]["numbers"] = "10"
+    path = tmp_path / "platforms.json"
+    path.write_text(json.dumps(bad))
+    with pytest.raises(PlatformDataError):
+        load_platform_table(path)

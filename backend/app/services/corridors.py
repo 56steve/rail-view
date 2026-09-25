@@ -57,14 +57,12 @@ def stop_corridors(
 ) -> tuple[Corridor, ...]:
     """The corridor each stop is reached on (the first stop: left on).
 
-    Each section between consecutive stops is "fast" if a non-fast-halt
-    station of the route is skipped in it, "slow" if it runs into a
-    station that isn't a fast halt, and otherwise undecided (it lies
-    between two fast halts with nothing skipped, so the train could be on
-    either pair). Undecided sections are filled in from the nearest
-    decided section - earlier in route order first, then later - which
-    has to happen in route order (lowest station index first), not in
-    travel order, or a DN-to-UP train would inherit from the wrong end.
+    A section passing a slow-only station is fast; a section between two
+    fast halts passing only fast halts (or none) takes its track pair
+    from the nearest decided section - earlier in route order first,
+    then later - which has to happen in route order (lowest station
+    index first), not in travel order, or a DN-to-UP train would inherit
+    from the wrong end.
     """
     index = _route_index(route_stations)
     positions = _stop_positions(index, stops)
@@ -77,7 +75,7 @@ def stop_corridors(
         passed = route_stations[lo + 1 : hi]
         if any(name not in fast_halts for name in passed):
             corridor: Corridor | None = "fast"
-        elif not passed and a in fast_halts and b in fast_halts:
+        elif a in fast_halts and b in fast_halts:
             corridor = None  # undecided: filled in below
         else:
             corridor = "slow"

@@ -56,6 +56,29 @@ def test_corridor_inheritance_is_route_order_not_travel_order() -> None:
     assert backward == tuple(reversed(forward))
 
 
+def test_section_passing_only_fast_halts_is_undecided_not_slow() -> None:
+    # A, B, C are fast halts; D is not. A->C passes B (a fast halt), so
+    # it's undecided on its own - not "slow" just because nothing
+    # non-fast-halt was skipped. C->D is genuinely slow (D isn't a fast
+    # halt), so A and C inherit slow from it.
+    route = ("A", "B", "C", "D")
+    fast_halts = frozenset({"A", "B", "C"})
+    assert stop_corridors(route, fast_halts, ("A", "C", "D"), single_pair=frozenset()) == (
+        "slow", "slow", "slow",
+    )
+
+
+def test_section_passing_only_fast_halts_inherits_a_preceding_fast_section() -> None:
+    # A, B, C are fast halts; X is slow-only. A->B skips X: decided fast.
+    # B->C passes nothing but both ends are fast halts: undecided, and
+    # inherits "fast" from the section before it.
+    route = ("A", "X", "B", "C")
+    fast_halts = frozenset({"A", "B", "C"})
+    assert stop_corridors(route, fast_halts, ("A", "B", "C"), single_pair=frozenset()) == (
+        "fast", "fast", "fast",
+    )
+
+
 def test_single_stop_is_any() -> None:
     assert stop_corridors(ROUTE, FAST_HALTS, ("C",), single_pair=frozenset()) == ("any",)
 
