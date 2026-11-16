@@ -1,7 +1,35 @@
-# RailView
+<h1 align="center">RailView</h1>
 
-Real-time 3D tracking for Mumbai's suburban local trains, built mobile-first.
-It covers four lines:
+<p align="center">
+  <b>A 3D live map of Mumbai's suburban local trains.</b><br>
+  Western, Central, Harbour and Trans-Harbour, on real OpenStreetMap track geometry.
+</p>
+
+<p align="center">
+  <a href="https://rail-view.vercel.app"><b>Open the live demo</b></a>
+  &nbsp;·&nbsp;
+  <a href="#screenshots">Screenshots</a>
+  &nbsp;·&nbsp;
+  <a href="#how-it-works">How it works</a>
+  &nbsp;·&nbsp;
+  <a href="#running-locally">Run locally</a>
+</p>
+
+<p align="center">
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
+  <img alt="Next.js" src="https://img.shields.io/badge/Next.js-frontend-black">
+  <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-backend-009688">
+  <img alt="Data: OpenStreetMap" src="https://img.shields.io/badge/map%20data-OpenStreetMap-7ebc6f">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/network-map.jpg" alt="RailView: the Mumbai suburban network by day, with live trains on all four lines" width="860">
+</p>
+
+RailView is a real-time 3D tracking app for Mumbai's suburban local trains,
+built mobile-first. If you ride the locals, you can see where your train is,
+how far it is from the next station and whether it's on time. It covers
+four lines:
 
 | Line | Routes |
 | --- | --- |
@@ -183,3 +211,11 @@ timetable identity, and only their positions come from the feed.
 
 Map data © OpenStreetMap contributors, available under the
 [ODbL](https://www.openstreetmap.org/copyright).
+
+Train numbers, service codes and stop times come from the timetables
+published by Central and Western Railway.
+
+## License
+
+The code is released under the [MIT License](LICENSE). Map data keeps its
+own ODbL license, as above.
